@@ -6,6 +6,8 @@ type StandDetailsPanelProps = {
   status?: StandStatus
   reservationCompany?: string
   onRelease: () => void
+  onReserve?: () => void
+  canReserve?: boolean
 }
 
 const StandDetailsPanel = ({
@@ -13,6 +15,8 @@ const StandDetailsPanel = ({
   status,
   reservationCompany,
   onRelease,
+  onReserve,
+  canReserve,
 }: StandDetailsPanelProps) => {
   if (!stand) {
     return (
@@ -61,7 +65,13 @@ const StandDetailsPanel = ({
             Liberar stand
           </button>
         </div>
-      ) : null}
+      ) : (
+        canReserve && onReserve && (
+          <button type="button" className="primary-btn" onClick={onReserve}>
+            Reservar stand
+          </button>
+        )
+      )}
     </div>
   )
 }

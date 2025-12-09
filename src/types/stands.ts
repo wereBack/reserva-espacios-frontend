@@ -27,7 +27,7 @@ export type FloorStand = {
   price: number
   size: string
   category: 'premium' | 'standard' | 'startup'
-  amenities: StandAmenity[]
+  amenities?: StandAmenity[]
   highlight?: string
   description?: string
   shape: StandShape

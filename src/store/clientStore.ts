@@ -71,6 +71,7 @@ type ClientStore = {
   reservations: Record<string, ReservationRecord>
   form: ReservationForm
   isSubmitting: boolean
+  isLoggedIn: boolean
   lastAction?: LastAction
   selectFloor: (id: string) => void
   selectStand: (id: string | null) => void
@@ -78,6 +79,8 @@ type ClientStore = {
   resetForm: () => void
   reserveSelected: () => Promise<ActionResult>
   releaseStand: (standId?: string) => ActionResult
+  login: () => void
+  logout: () => void
 }
 
 type ActionResult = {
@@ -102,6 +105,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
   reservations: initialReservations,
   form: emptyForm,
   isSubmitting: false,
+  isLoggedIn: false,
   lastAction: undefined,
   selectFloor: (id) =>
     set((state) => {
@@ -119,7 +123,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
     })),
   resetForm: () => set({ form: emptyForm }),
   reserveSelected: async () => {
-    const { selectedStandId, statuses, form } = get()
+    const { selectedStandId, statuses, form, isLoggedIn } = get()
     if (!selectedStandId) {
       return { ok: false, message: 'Seleccioná un stand para reservar.' }
     }
@@ -132,26 +136,37 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       return { ok: false, message: 'Ese stand está bloqueado por la organización.' }
     }
 
-    if (!form.companyName || !form.contactName || !form.email || !form.phone) {
-      return { ok: false, message: 'Completá los campos obligatorios del formulario.' }
+    const fallbackForm: ReservationForm = {
+      companyName: form.companyName || 'Empresa registrada',
+      contactName: form.contactName || 'Contacto principal',
+      email: form.email || 'contacto@empresa.com',
+      phone: form.phone || '+54 11 0000-0000',
+      notes: form.notes,
+    }
+
+    if (!isLoggedIn) {
+      if (!form.companyName || !form.contactName || !form.email || !form.phone) {
+        return { ok: false, message: 'Completá los campos obligatorios del formulario.' }
+      }
     }
 
     set({ isSubmitting: true })
     await wait(800)
 
     const timestamp = new Date().toISOString()
+    const formData = isLoggedIn ? fallbackForm : form
 
     set((state) => ({
       isSubmitting: false,
       statuses: { ...state.statuses, [selectedStandId]: 'reservado' },
       reservations: {
         ...state.reservations,
-        [selectedStandId]: { ...state.form, standId: selectedStandId, timestamp },
+        [selectedStandId]: { ...formData, standId: selectedStandId, timestamp },
       },
       lastAction: {
         type: 'reserved',
         standId: selectedStandId,
-        companyName: state.form.companyName,
+        companyName: formData.companyName,
         timestamp,
       },
       form: emptyForm,
@@ -188,5 +203,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
 
     return { ok: true, message: `El stand ${standId} volvió a estar disponible.` }
   },
+  login: () => set({ isLoggedIn: true }),
+  logout: () => set({ isLoggedIn: false }),
 }))
 

@@ -3,8 +3,9 @@ import { useClientStore } from '../store/clientStore'
 import FloorSwitcher from './components/FloorSwitcher'
 import StandMap from './components/StandMap'
 import Legend from './components/Legend'
+import FloorSelect from './components/FloorSelect'
 import StandDetailsPanel from './components/StandDetailsPanel'
-import ReservationForm from './components/ReservationForm'
+import ContactForm from './components/ContactForm'
 import StandList from './components/StandList'
 import LastActionToast from './components/LastActionToast'
 import './client.css'
@@ -17,6 +18,10 @@ const ClientApp = () => {
   const selectStand = useClientStore((state) => state.selectStand)
   const reservations = useClientStore((state) => state.reservations)
   const releaseStand = useClientStore((state) => state.releaseStand)
+  const reserveSelected = useClientStore((state) => state.reserveSelected)
+  const isLoggedIn = useClientStore((state) => state.isLoggedIn)
+  const login = useClientStore((state) => state.login)
+  const logout = useClientStore((state) => state.logout)
 
   const activeFloor = floors.find((floor) => floor.id === floorId) ?? floors[0]
   const selectedStand = activeFloor?.stands.find((stand) => stand.id === selectedStandId)
@@ -42,6 +47,29 @@ const ClientApp = () => {
           </p>
         </div>
 
+        <div className="hero-actions">
+          <FloorSelect floors={floors} activeId={floorId} onSelect={selectFloor} />
+          <div className="session-actions">
+            {isLoggedIn ? (
+              <>
+                <span className="badge">Sesión iniciada</span>
+                <button type="button" className="ghost-btn" onClick={logout}>
+                  Cerrar sesión
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="button" className="ghost-btn" onClick={login}>
+                  Iniciar sesión
+                </button>
+                <button type="button" className="ghost-btn ghost-btn--accent" onClick={login}>
+                  Registrarse
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="hero-stats">
           <div>
             <p>Stands disponibles</p>
@@ -65,6 +93,7 @@ const ClientApp = () => {
             onSelect={selectStand}
           />
           <Legend />
+          {!isLoggedIn ? <ContactForm /> : null}
         </section>
 
         <aside className="client-layout__panel">
@@ -73,8 +102,9 @@ const ClientApp = () => {
             status={currentStatus}
             reservationCompany={reservation?.companyName}
             onRelease={() => releaseStand(selectedStand?.id)}
+            onReserve={() => reserveSelected()}
+            canReserve={isLoggedIn && !!selectedStand && currentStatus !== 'reservado' && currentStatus !== 'bloqueado'}
           />
-          <ReservationForm />
           <StandList
             stands={activeFloor.stands}
             statuses={statuses}
