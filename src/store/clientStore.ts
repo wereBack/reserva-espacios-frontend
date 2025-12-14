@@ -142,7 +142,7 @@ export const useClientStore = create<ClientStore>((set, get) => ({
       email: form.email || 'contacto@empresa.com',
       phone: form.phone || '+54 11 0000-0000',
       notes: form.notes,
-    }
+    } 
 
     if (!isLoggedIn) {
       if (!form.companyName || !form.contactName || !form.email || !form.phone) {

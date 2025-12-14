@@ -1,6 +1,10 @@
 import { useState } from 'react'
 
-const ContactForm = () => {
+type ContactFormProps = {
+  institutionEmail?: string
+}
+
+const ContactForm = ({ institutionEmail }: ContactFormProps) => {
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -69,6 +73,12 @@ const ContactForm = () => {
           />
         </label>
       </div>
+
+      {institutionEmail ? (
+        <p className="contact-hint">
+          También podés escribirnos a <a href={`mailto:${institutionEmail}`}>{institutionEmail}</a>
+        </p>
+      ) : null}
 
       {error ? <p className="form-feedback">{error}</p> : null}
       {sent ? <p className="form-success">¡Gracias! Te contactaremos en breve.</p> : null}

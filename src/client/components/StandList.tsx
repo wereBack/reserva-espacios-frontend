@@ -91,3 +91,4 @@ const StandList = ({ stands, statuses, selectedStandId, onSelect }: StandListPro
 export default StandList
 
 
+

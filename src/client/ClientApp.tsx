@@ -3,7 +3,6 @@ import { useClientStore } from '../store/clientStore'
 import FloorSwitcher from './components/FloorSwitcher'
 import StandMap from './components/StandMap'
 import Legend from './components/Legend'
-import FloorSelect from './components/FloorSelect'
 import StandDetailsPanel from './components/StandDetailsPanel'
 import ContactForm from './components/ContactForm'
 import StandList from './components/StandList'
@@ -38,17 +37,7 @@ const ClientApp = () => {
   return (
     <div className="client-app">
       <header className="client-hero">
-        <div>
-          <p className="eyebrow">Mapa interactivo</p>
-          <h1>Elegí el stand ideal para tu empresa</h1>
-          <p className="subtitle">
-            Visualizá el plano del edificio, filtrá por categoría y confirmá tu reserva mock para la feria
-            de empleo.
-          </p>
-        </div>
-
-        <div className="hero-actions">
-          <FloorSelect floors={floors} activeId={floorId} onSelect={selectFloor} />
+        <div className="hero-row hero-row--top">
           <div className="session-actions">
             {isLoggedIn ? (
               <>
@@ -70,49 +59,71 @@ const ClientApp = () => {
           </div>
         </div>
 
-        <div className="hero-stats">
+        <div className="hero-row hero-row--main">
           <div>
-            <p>Stands disponibles</p>
-            <strong>{availableCount}</strong>
+            <p className="eyebrow">Mapa interactivo</p>
+            <h1>Elegí el stand ideal para tu empresa</h1>
+            <p className="subtitle">
+              Visualizá el plano del edificio, filtrá por categoría y confirmá tu reserva mock para la feria
+              de empleo.
+            </p>
           </div>
-          <div>
-            <p>Reservados</p>
-            <strong className="accent">{reservedCount}</strong>
+
+          <div className="hero-stats">
+            <div className="stat-card">
+              <p>Stands disponibles</p>
+              <strong>{availableCount}</strong>
+            </div>
+            <div className="stat-card">
+              <p>Reservados</p>
+              <strong className="accent">{reservedCount}</strong>
+            </div>
           </div>
         </div>
       </header>
 
       <FloorSwitcher floors={floors} activeId={floorId} onSelect={selectFloor} />
 
-      <main className="client-layout">
-        <section className="client-layout__map">
-          <StandMap
-            floor={activeFloor}
-            statuses={statuses}
-            selectedStandId={selectedStandId}
-            onSelect={selectStand}
-          />
+      <main className="client-flow">
+        <section className="map-section">
+          <div className="map-card">
+            <StandMap
+              floor={activeFloor}
+              statuses={statuses}
+              selectedStandId={selectedStandId}
+              onSelect={selectStand}
+            />
+          </div>
           <Legend />
-          {!isLoggedIn ? <ContactForm /> : null}
         </section>
 
-        <aside className="client-layout__panel">
-          <StandDetailsPanel
-            stand={selectedStand}
-            status={currentStatus}
-            reservationCompany={reservation?.companyName}
-            onRelease={() => releaseStand(selectedStand?.id)}
-            onReserve={() => reserveSelected()}
-            canReserve={isLoggedIn && !!selectedStand && currentStatus !== 'reservado' && currentStatus !== 'bloqueado'}
-          />
-          <StandList
-            stands={activeFloor.stands}
-            statuses={statuses}
-            selectedStandId={selectedStandId}
-            onSelect={selectStand}
-          />
-        </aside>
+        <section className="details-grid">
+          <div className="details-column">
+            <StandDetailsPanel
+              stand={selectedStand}
+              status={currentStatus}
+              reservationCompany={reservation?.companyName}
+              onRelease={() => releaseStand(selectedStand?.id)}
+              onReserve={() => reserveSelected()}
+              canReserve={
+                isLoggedIn && !!selectedStand && currentStatus !== 'reservado' && currentStatus !== 'bloqueado'
+              }
+            />
+          </div>
+          <div className="details-column">
+            <StandList
+              stands={activeFloor.stands}
+              statuses={statuses}
+              selectedStandId={selectedStandId}
+              onSelect={selectStand}
+            />
+          </div>
+        </section>
       </main>
+
+      <footer className="contact-footer">
+        <ContactForm institutionEmail="contacto@feria.com" />
+      </footer>
 
       <LastActionToast />
     </div>

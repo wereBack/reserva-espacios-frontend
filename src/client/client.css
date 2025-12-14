@@ -70,17 +70,9 @@ body {
   align-items: center;
 }
 
-.hero-actions {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
 .session-actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
 }
 
@@ -88,122 +80,135 @@ body {
   border: 1px solid #e2e8f0;
   background: white;
   color: #0f172a;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  transition: transform 0.1s ease, box-shadow 0.2s ease, border-color 0.2s, color 0.2s;
+}
+
+.ghost-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  border-color: #cbd5e1;
 }
 
 .ghost-btn--accent {
   border-color: #0f9d58;
   color: #0f9d58;
+  background: #e6f4ec;
+}
+
+.ghost-btn--accent:hover {
+  border-color: #0c7a45;
+  color: #0c7a45;
+  box-shadow: 0 10px 24px rgba(12, 122, 69, 0.2);
 }
 
 .badge {
-  background: #e2e8f0;
-  color: #0f172a;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.hero-stats div {
-  background: #0f172a;
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
   color: white;
-  padding: 16px 20px;
-  border-radius: 16px;
-  min-width: 140px;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.25);
 }
 
-.hero-stats strong {
+.client-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.hero-row {
+  display: flex;
+  width: 100%;
+}
+
+.hero-row--top {
+  justify-content: flex-end;
+}
+
+.hero-row--main {
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.stat-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 16px;
+  min-width: 150px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.stat-card p {
+  margin: 0 0 6px;
+  color: #475569;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.stat-card strong {
   display: block;
   font-size: 28px;
-  margin-top: 4px;
+  margin: 0;
+  color: #0f172a;
 }
 
-.hero-stats .accent {
-  color: #facc15;
+.stat-card .accent {
+  color: #f59e0b;
 }
 
-.floor-switcher {
+.map-section {
   display: flex;
+  flex-direction: column;
   gap: 16px;
 }
 
-.floor-switcher__btn {
-  flex: 1;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 16px;
-  text-align: left;
-  background: white;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.floor-switcher__btn.active {
-  border-color: #0f9d58;
-  box-shadow: 0 8px 24px rgba(15, 157, 88, 0.15);
-}
-
-.floor-switcher__btn span {
-  display: block;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.floor-switcher__btn small {
-  color: #64748b;
-}
-
-.floor-select {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 220px;
-}
-
-.floor-select span {
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #94a3b8;
-}
-
-.floor-select select {
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  padding: 10px 12px;
-  font-size: 14px;
-  font-family: inherit;
-  background: white;
-  cursor: pointer;
-}
-
-.client-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.9fr);
-  gap: 24px;
-  align-items: start;
-}
-
-.client-layout__map {
+.map-card {
   background: white;
   border-radius: 20px;
   padding: clamp(20px, 3vw, 32px);
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-height: 0;
-  align-self: start;
 }
 
-.client-layout__panel {
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.details-column {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.contact-footer {
+  margin-top: 8px;
+}
+
+.contact-card {
+  background: white;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.contact-hint {
+  margin: 0;
+  color: #475569;
 }
 
 .panel-card {
