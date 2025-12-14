@@ -137,6 +137,45 @@ body {
   gap: 20px;
 }
 
+.floor-switcher {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.floor-switcher__btn {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  text-align: left;
+  background: white;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.2s ease, border-color 0.2s;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+}
+
+.floor-switcher__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.floor-switcher__btn.active {
+  border-color: #0f9d58;
+  box-shadow: 0 12px 28px rgba(15, 157, 88, 0.18);
+  background: linear-gradient(135deg, #e6f4ec, #f8fafc);
+}
+
+.floor-switcher__btn span {
+  display: block;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.floor-switcher__btn small {
+  color: #64748b;
+}
 .hero-stats {
   display: flex;
   gap: 12px;
