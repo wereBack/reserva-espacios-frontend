@@ -16,6 +16,7 @@ export type BaseShape = {
   id: string
   color: string
   label?: string
+  price?: number
 }
 
 export type RectShape = BaseShape & {
@@ -108,6 +109,7 @@ const shapeToApiFormat = (shape: Stand | Zone, index: number) => {
       height: shape.height,
       color: shape.color,
       name: shape.label || `Stand ${index + 1}`,
+      price: shape.price,
     }
   }
   // For polygon/free shapes, calculate bounding box
@@ -127,6 +129,7 @@ const shapeToApiFormat = (shape: Stand | Zone, index: number) => {
     height: maxY - minY,
     color: shape.color,
     name: shape.label || `Stand ${index + 1}`,
+    price: shape.price,
   }
 }
 
@@ -141,6 +144,7 @@ const apiToShapeFormat = (data: PlanoData['spaces'][0]): Stand => {
     height: data.height,
     color: data.color,
     label: data.name,
+    price: data.price,
   }
 }
 

@@ -1,4 +1,4 @@
-import type { Stand } from '../store/standStore'
+import type { Stand, Zone } from '../store/standStore'
 import { useStandStore } from '../store/standStore'
 
 const StandInspector = () => {
@@ -7,15 +7,26 @@ const StandInspector = () => {
   const selectedStandId = useStandStore((state) => state.selectedStandId)
   const selectStand = useStandStore((state) => state.selectStand)
   const updateStand = useStandStore((state) => state.updateStand)
+  const updateZone = useStandStore((state) => state.updateZone)
   const removeStand = useStandStore((state) => state.removeStand)
   const removeZone = useStandStore((state) => state.removeZone)
 
-  const handleColorChange = (stand: Stand, color: string) => {
-    updateStand(stand.id, { color })
-  }
-
   const handleLabelChange = (stand: Stand, label: string) => {
     updateStand(stand.id, { label: label.trim() === '' ? undefined : label })
+  }
+
+  const handlePriceChange = (stand: Stand, priceStr: string) => {
+    const price = priceStr === '' ? undefined : parseFloat(priceStr)
+    updateStand(stand.id, { price })
+  }
+
+  const handleZonePriceChange = (zone: Zone, priceStr: string) => {
+    const price = priceStr === '' ? undefined : parseFloat(priceStr)
+    updateZone(zone.id, { price })
+  }
+
+  const handleZoneLabelChange = (zone: Zone, label: string) => {
+    updateZone(zone.id, { label: label.trim() === '' ? undefined : label })
   }
 
   return (
@@ -36,9 +47,8 @@ const StandInspector = () => {
           {stands.map((stand, index) => (
             <li
               key={stand.id}
-              className={`inspector__item ${
-                selectedStandId === stand.id ? 'inspector__item--active' : ''
-              }`}
+              className={`inspector__item ${selectedStandId === stand.id ? 'inspector__item--active' : ''
+                }`}
             >
               <button
                 className="inspector__item-main"
@@ -65,13 +75,15 @@ const StandInspector = () => {
                 <div className="inspector__meta">
                   <span>{formatStandMeta(stand)}</span>
                 </div>
-                <label className="inspector__color">
-                  Color
+                <label className="inspector__field">
+                  Precio
                   <input
-                    type="color"
-                    value={stand.color}
+                    className="inspector__input"
+                    type="number"
+                    placeholder="Precio (opcional)"
+                    value={stand.price ?? ''}
                     onChange={(event) =>
-                      handleColorChange(stand, event.target.value)
+                      handlePriceChange(stand, event.target.value)
                     }
                   />
                 </label>
@@ -96,19 +108,34 @@ const StandInspector = () => {
         ) : (
           <ul className="inspector__zone-list">
             {zones.map((zone, index) => (
-              <li key={zone.id} className="inspector__zone-row">
-                <span
-                  className="inspector__zone-dot"
-                  style={{ backgroundColor: zone.color }}
+              <li key={zone.id} className="inspector__zone-item">
+                <div className="inspector__zone-row">
+                  <span
+                    className="inspector__zone-dot"
+                    style={{ backgroundColor: zone.color }}
+                  />
+                  <input
+                    className="inspector__input inspector__input--small"
+                    placeholder={`Zona ${index + 1}`}
+                    value={zone.label ?? ''}
+                    onChange={(e) => handleZoneLabelChange(zone, e.target.value)}
+                  />
+                  <button
+                    className="inspector__zone-delete"
+                    onClick={() => removeZone(zone.id)}
+                    aria-label="Eliminar zona"
+                  >
+                    ×
+                  </button>
+                </div>
+                <input
+                  className="inspector__input inspector__input--small"
+                  type="number"
+                  placeholder="Precio zona"
+                  value={zone.price ?? ''}
+                  onChange={(e) => handleZonePriceChange(zone, e.target.value)}
+                  style={{ marginTop: '4px' }}
                 />
-                <span className="inspector__zone-label">Zona {index + 1}</span>
-                <button
-                  className="inspector__zone-delete"
-                  onClick={() => removeZone(zone.id)}
-                  aria-label="Eliminar zona"
-                >
-                  ×
-                </button>
               </li>
             ))}
           </ul>
@@ -129,4 +156,3 @@ const formatStandMeta = (stand: Stand) => {
 }
 
 export default StandInspector
-

@@ -21,6 +21,7 @@ export interface SpaceData {
     color: string;
     name: string;
     zone_id?: string;
+    price?: number;
 }
 
 export interface ZoneData {
@@ -32,6 +33,7 @@ export interface ZoneData {
     height: number;
     color: string;
     name: string;
+    price?: number;
 }
 
 export async function fetchPlanos(): Promise<PlanoData[]> {
@@ -129,4 +131,14 @@ export async function createEvento(data: Omit<EventoData, 'id'>): Promise<Evento
         throw new Error(error.error || 'Error al crear evento');
     }
     return response.json();
+}
+
+export async function deleteEvento(id: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/eventos/${id}`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al eliminar evento');
+    }
 }

@@ -148,7 +148,7 @@ const Toolbar = ({ onBackgroundChange }: ToolbarProps) => {
             disabled={isSaving}
             className="toolbar__button toolbar__button--active"
           >
-            {isSaving ? 'Guardando...' : '💾 Guardar Plano'}
+            {isSaving ? 'Guardando...' : 'Guardar Plano'}
           </button>
           <button
             onClick={undoLast}

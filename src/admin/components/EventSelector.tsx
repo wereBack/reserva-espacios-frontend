@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchEventos, createEvento, fetchPlanosByEvento, type EventoData, type PlanoData } from '../services/api';
+import { fetchEventos, createEvento, fetchPlanosByEvento, deletePlano, deleteEvento, type EventoData, type PlanoData } from '../services/api';
 import { useStandStore } from '../store/standStore';
 
 const EventSelector = () => {
@@ -67,6 +67,34 @@ const EventSelector = () => {
         }
     };
 
+    const handleDeletePlano = async (planoIdToDelete: string) => {
+        if (!confirm('¿Estás seguro de eliminar este plano?')) return;
+        try {
+            await deletePlano(planoIdToDelete);
+            setPlanos(planos.filter(p => p.id !== planoIdToDelete));
+            if (planoId === planoIdToDelete) {
+                clearAll();
+            }
+            alert('Plano eliminado');
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Error al eliminar plano');
+        }
+    };
+
+    const handleDeleteEvento = async () => {
+        if (!eventoId) return;
+        if (!confirm('¿Estás seguro de eliminar este evento y todos sus planos?')) return;
+        try {
+            await deleteEvento(eventoId);
+            setEventos(eventos.filter(e => e.id !== eventoId));
+            setEventoId(null);
+            clearAll();
+            alert('Evento eliminado');
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Error al eliminar evento');
+        }
+    };
+
     const handleCreateEvento = async () => {
         if (!newEventData.nombre || !newEventData.fecha_reserva_desde || !newEventData.fecha_reserva_hasta) {
             alert('Completa todos los campos');
@@ -109,6 +137,15 @@ const EventSelector = () => {
                     >
                         + Nuevo Evento
                     </button>
+                    {eventoId && (
+                        <button
+                            className="toolbar__button toolbar__button--danger"
+                            onClick={handleDeleteEvento}
+                            style={{ marginTop: '4px' }}
+                        >
+                            Eliminar Evento
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="event-creator" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -152,13 +189,21 @@ const EventSelector = () => {
                     ) : (
                         <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             {planos.map(p => (
-                                <li key={p.id}>
+                                <li key={p.id} style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                     <button
                                         className={`toolbar__button ${planoId === p.id ? 'toolbar__button--active' : ''}`}
                                         onClick={() => handleLoadPlano(p.id!)}
-                                        style={{ width: '100%', textAlign: 'left' }}
+                                        style={{ flex: 1, textAlign: 'left' }}
                                     >
                                         📄 {p.name}
+                                    </button>
+                                    <button
+                                        className="toolbar__button toolbar__button--danger"
+                                        onClick={() => handleDeletePlano(p.id!)}
+                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                                        title="Eliminar plano"
+                                    >
+                                        Eliminar Plano
                                     </button>
                                 </li>
                             ))}
