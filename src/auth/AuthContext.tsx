@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
 import keycloak from './keycloak';
 
 interface User {
@@ -22,8 +22,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isInitialized, setIsInitialized] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<User | null>(null);
+    const initCalled = useRef(false);
 
     useEffect(() => {
+        // Prevent double initialization (React StrictMode)
+        if (initCalled.current) return;
+        initCalled.current = true;
+
         keycloak.init({
             onLoad: 'check-sso',
             checkLoginIframe: false,

@@ -62,9 +62,8 @@ const Toolbar = ({ onBackgroundChange }: ToolbarProps) => {
           {STAND_TOOLS.map((tool) => (
             <button
               key={tool.id}
-              className={`toolbar__button ${
-                mode === tool.id ? 'toolbar__button--active' : ''
-              }`}
+              className={`toolbar__button ${mode === tool.id ? 'toolbar__button--active' : ''
+                }`}
               onClick={() => setMode(tool.id)}
             >
               {tool.label}
@@ -79,9 +78,8 @@ const Toolbar = ({ onBackgroundChange }: ToolbarProps) => {
           {ZONE_TOOLS.map((tool) => (
             <button
               key={tool.id}
-              className={`toolbar__button ${
-                mode === tool.id ? 'toolbar__button--active' : ''
-              }`}
+              className={`toolbar__button ${mode === tool.id ? 'toolbar__button--active' : ''
+                }`}
               onClick={() => setMode(tool.id)}
             >
               {tool.label}
@@ -94,9 +92,8 @@ const Toolbar = ({ onBackgroundChange }: ToolbarProps) => {
         <p className="toolbar__title">Tamaños de stand</p>
         <div className="toolbar__chips">
           <button
-            className={`toolbar__chip ${
-              rectPresetId === null ? 'toolbar__chip--active' : ''
-            }`}
+            className={`toolbar__chip ${rectPresetId === null ? 'toolbar__chip--active' : ''
+              }`}
             onClick={() => setRectPreset(null)}
           >
             Libre
@@ -104,9 +101,8 @@ const Toolbar = ({ onBackgroundChange }: ToolbarProps) => {
           {presets.map((preset) => (
             <button
               key={preset.id}
-              className={`toolbar__chip ${
-                rectPresetId === preset.id ? 'toolbar__chip--active' : ''
-              }`}
+              className={`toolbar__chip ${rectPresetId === preset.id ? 'toolbar__chip--active' : ''
+                }`}
               onClick={() => setRectPreset(preset.id)}
             >
               {preset.label}

@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { createPlano, updatePlano, fetchPlano, type PlanoData } from '../services/api'
 
 export type DrawingMode =
   | 'select'
@@ -46,6 +47,17 @@ export type RectPreset = {
 }
 
 type StandStore = {
+  // Plano state
+  planoId: string | null
+  planoName: string
+  eventoId: string | null
+  backgroundUrl: string
+  canvasWidth: number
+  canvasHeight: number
+  isSaving: boolean
+  lastSaved: Date | null
+
+  // Drawing state
   stands: Stand[]
   zones: Zone[]
   history: Array<{ type: 'stand' | 'zone'; id: string }>
@@ -54,6 +66,16 @@ type StandStore = {
   color: string
   rectPresetId: string | null
   presets: RectPreset[]
+
+  // Plano actions
+  setPlanoName: (name: string) => void
+  setEventoId: (id: string | null) => void
+  setBackgroundUrl: (url: string) => void
+  setCanvasSize: (width: number, height: number) => void
+  savePlano: () => Promise<void>
+  loadPlano: (id: string) => Promise<void>
+
+  // Drawing actions
   addStand: (stand: Stand) => void
   addZone: (zone: Zone) => void
   updateStand: (id: string, updates: Partial<Stand>) => void
@@ -75,7 +97,65 @@ const DEFAULT_PRESETS: RectPreset[] = [
   { id: 'large', label: '4 x 3 m', width: 320, height: 240 },
 ]
 
+// Helper to convert frontend shape to backend format
+const shapeToApiFormat = (shape: Stand | Zone, index: number) => {
+  if (shape.kind === 'rect') {
+    return {
+      kind: 'rect',
+      x: shape.x,
+      y: shape.y,
+      width: shape.width,
+      height: shape.height,
+      color: shape.color,
+      name: shape.label || `Stand ${index + 1}`,
+    }
+  }
+  // For polygon/free shapes, calculate bounding box
+  const points = (shape as PolygonShape | FreeShape).points
+  const xs = points.filter((_, i) => i % 2 === 0)
+  const ys = points.filter((_, i) => i % 2 === 1)
+  const minX = Math.min(...xs)
+  const minY = Math.min(...ys)
+  const maxX = Math.max(...xs)
+  const maxY = Math.max(...ys)
+
+  return {
+    kind: shape.kind,
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+    color: shape.color,
+    name: shape.label || `Stand ${index + 1}`,
+  }
+}
+
+// Helper to convert backend format to frontend shape
+const apiToShapeFormat = (data: PlanoData['spaces'][0]): Stand => {
+  return {
+    id: data.id || crypto.randomUUID(),
+    kind: 'rect',
+    x: data.x,
+    y: data.y,
+    width: data.width,
+    height: data.height,
+    color: data.color,
+    label: data.name,
+  }
+}
+
 export const useStandStore = create<StandStore>((set, get) => ({
+  // Plano state
+  planoId: null,
+  planoName: 'Nuevo Plano',
+  eventoId: null,
+  backgroundUrl: '',
+  canvasWidth: 800,
+  canvasHeight: 600,
+  isSaving: false,
+  lastSaved: null,
+
+  // Drawing state
   stands: [],
   zones: [],
   history: [],
@@ -84,6 +164,76 @@ export const useStandStore = create<StandStore>((set, get) => ({
   color: '#ffb703',
   rectPresetId: 'medium',
   presets: DEFAULT_PRESETS,
+
+  // Plano actions
+  setPlanoName: (name) => set({ planoName: name }),
+  setEventoId: (id) => set({ eventoId: id }),
+  setBackgroundUrl: (url) => set({ backgroundUrl: url }),
+  setCanvasSize: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
+
+  savePlano: async () => {
+    const state = get()
+    set({ isSaving: true })
+
+    try {
+      const planoData: PlanoData = {
+        name: state.planoName,
+        url: state.backgroundUrl,
+        width: state.canvasWidth,
+        height: state.canvasHeight,
+        evento_id: state.eventoId || undefined,
+        spaces: state.stands.map((stand, i) => shapeToApiFormat(stand, i)),
+        zones: state.zones.map((zone, i) => ({
+          ...shapeToApiFormat(zone, i),
+          name: zone.label || `Zona ${i + 1}`,
+        })),
+      }
+
+      let result: PlanoData
+      if (state.planoId) {
+        result = await updatePlano(state.planoId, planoData)
+      } else {
+        result = await createPlano(planoData)
+      }
+
+      set({
+        planoId: result.id || null,
+        isSaving: false,
+        lastSaved: new Date()
+      })
+
+      alert('Mapa guardado correctamente')
+    } catch (error) {
+      set({ isSaving: false })
+      alert(`Error al guardar: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+    }
+  },
+
+  loadPlano: async (id: string) => {
+    try {
+      const plano = await fetchPlano(id)
+
+      const stands: Stand[] = (plano.spaces || []).map(apiToShapeFormat)
+      const zones: Zone[] = (plano.zones || []).map(apiToShapeFormat)
+
+      set({
+        planoId: plano.id || null,
+        planoName: plano.name,
+        eventoId: plano.evento_id || null,
+        backgroundUrl: plano.url,
+        canvasWidth: plano.width,
+        canvasHeight: plano.height,
+        stands,
+        zones,
+        history: [],
+        selectedStandId: null,
+      })
+    } catch (error) {
+      alert(`Error al cargar plano: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+    }
+  },
+
+  // Drawing actions
   addStand: (stand) =>
     set((state) => ({
       stands: [...state.stands, stand],
@@ -119,7 +269,15 @@ export const useStandStore = create<StandStore>((set, get) => ({
     set((state) => ({
       zones: state.zones.filter((zone) => zone.id !== id),
     })),
-  clearAll: () => set({ stands: [], zones: [], history: [], selectedStandId: null }),
+  clearAll: () => set({
+    stands: [],
+    zones: [],
+    history: [],
+    selectedStandId: null,
+    planoId: null,
+    planoName: 'Nuevo Plano',
+    backgroundUrl: '',
+  }),
   undoLast: () =>
     set((state) => {
       const history = [...state.history]
