@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import LoginModal from '../auth/LoginModal'
 import { usePlanos } from './hooks/usePlanos'
 import { createReservation } from './services/api'
 import PlanoMap from './components/PlanoMap'
@@ -21,7 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const ClientApp = () => {
-    const { isAuthenticated, user, login, logout } = useAuth()
+    const { isAuthenticated, user, logout, setShowLoginModal } = useAuth()
     const { planos, isLoading, error, refetch } = usePlanos()
     const [selectedEventoId, setSelectedEventoId] = useState<string | null>(null)
     const [selectedPlanoIndex, setSelectedPlanoIndex] = useState(0)
@@ -86,10 +87,10 @@ const ClientApp = () => {
                             </>
                         ) : (
                             <>
-                                <button type="button" className="ghost-btn" onClick={login}>
+                                <button type="button" className="ghost-btn" onClick={() => setShowLoginModal(true)}>
                                     Iniciar sesión
                                 </button>
-                                <button type="button" className="ghost-btn ghost-btn--accent" onClick={login}>
+                                <button type="button" className="ghost-btn ghost-btn--accent" onClick={() => setShowLoginModal(true)}>
                                     Registrarse
                                 </button>
                             </>
@@ -237,6 +238,8 @@ const ClientApp = () => {
                     <p>Contactanos a <a href="mailto:contacto@feria.com">contacto@feria.com</a></p>
                 </div>
             </footer>
+
+            <LoginModal />
         </div>
     )
 }
