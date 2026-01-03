@@ -202,7 +202,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
         lastSaved: new Date()
       })
 
-      alert('Mapa guardado correctamente')
+      alert('Plano guardado correctamente')
     } catch (error) {
       set({ isSaving: false })
       alert(`Error al guardar: ${error instanceof Error ? error.message : 'Error desconocido'}`)

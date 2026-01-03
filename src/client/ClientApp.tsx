@@ -67,7 +67,7 @@ const ClientApp = () => {
 
                 <div className="hero-row hero-row--main">
                     <div>
-                        <p className="eyebrow">Mapa interactivo</p>
+                        <p className="eyebrow">Plano interactivo</p>
                         <h1>Elegí el stand ideal para tu empresa</h1>
                         <p className="subtitle">
                             Visualizá el plano del edificio, seleccioná un stand y confirmá tu reserva para la feria de empleo.
@@ -123,8 +123,8 @@ const ClientApp = () => {
 
                 {!isLoading && !error && planos.length === 0 && (
                     <div className="empty-message">
-                        <p>No hay mapas disponibles todavía.</p>
-                        <p>El administrador debe crear y guardar un mapa primero.</p>
+                        <p>No hay planos disponibles todavía.</p>
+                        <p>El administrador debe crear y guardar un plano primero.</p>
                     </div>
                 )}
 
@@ -158,7 +158,7 @@ const ClientApp = () => {
                                             )}
                                         </div>
                                     ) : (
-                                        <p className="stand-details__empty">Seleccioná un stand en el mapa para ver sus detalles.</p>
+                                        <p className="stand-details__empty">Seleccioná un stand en el plano para ver sus detalles.</p>
                                     )}
                                 </div>
                             </div>

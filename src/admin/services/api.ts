@@ -41,6 +41,14 @@ export async function fetchPlanos(): Promise<PlanoData[]> {
     return response.json();
 }
 
+export async function fetchPlanosByEvento(eventoId: string): Promise<PlanoData[]> {
+    const response = await fetch(`${API_BASE}/planos/por-evento/${eventoId}`);
+    if (!response.ok) {
+        throw new Error('Error al obtener planos del evento');
+    }
+    return response.json();
+}
+
 export async function fetchPlano(id: string): Promise<PlanoData> {
     const response = await fetch(`${API_BASE}/planos/${id}`);
     if (!response.ok) {

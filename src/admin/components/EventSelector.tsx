@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { fetchEventos, createEvento, type EventoData } from '../services/api';
+import { fetchEventos, createEvento, fetchPlanosByEvento, type EventoData, type PlanoData } from '../services/api';
 import { useStandStore } from '../store/standStore';
 
 const EventSelector = () => {
-    const { eventoId, setEventoId } = useStandStore();
+    const { eventoId, setEventoId, loadPlano, clearAll, planoId } = useStandStore();
     const [eventos, setEventos] = useState<EventoData[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
+    const [planos, setPlanos] = useState<PlanoData[]>([]);
+    const [isLoadingPlanos, setIsLoadingPlanos] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [newEventData, setNewEventData] = useState({
         nombre: '',
@@ -17,15 +18,52 @@ const EventSelector = () => {
         loadEventos();
     }, []);
 
+    // Load planos when event changes
+    useEffect(() => {
+        if (eventoId) {
+            loadPlanosForEvent(eventoId);
+        } else {
+            setPlanos([]);
+        }
+    }, [eventoId]);
+
     const loadEventos = async () => {
-        setIsLoading(true);
         try {
             const data = await fetchEventos();
             setEventos(data);
         } catch (error) {
             console.error('Error cargando eventos', error);
+        }
+    };
+
+    const loadPlanosForEvent = async (eventId: string) => {
+        setIsLoadingPlanos(true);
+        try {
+            const data = await fetchPlanosByEvento(eventId);
+            setPlanos(data);
+        } catch (error) {
+            console.error('Error cargando planos', error);
+            setPlanos([]);
         } finally {
-            setIsLoading(false);
+            setIsLoadingPlanos(false);
+        }
+    };
+
+    const handleEventChange = (newEventoId: string | null) => {
+        setEventoId(newEventoId);
+        // Clear current plano when changing event
+        clearAll();
+    };
+
+    const handleLoadPlano = async (planoIdToLoad: string) => {
+        await loadPlano(planoIdToLoad);
+    };
+
+    const handleNewPlano = () => {
+        clearAll();
+        // Keep the event selected
+        if (eventoId) {
+            setEventoId(eventoId);
         }
     };
 
@@ -58,7 +96,7 @@ const EventSelector = () => {
                     <select
                         className="toolbar__input"
                         value={eventoId || ''}
-                        onChange={(e) => setEventoId(e.target.value || null)}
+                        onChange={(e) => handleEventChange(e.target.value || null)}
                     >
                         <option value="">-- Sin evento --</option>
                         {eventos.map(e => (
@@ -101,8 +139,44 @@ const EventSelector = () => {
                     </div>
                 </div>
             )}
+
+            {/* Planos section - only show when event is selected */}
+            {eventoId && !isCreating && (
+                <div style={{ marginTop: '16px' }}>
+                    <h4 className="toolbar__section-title">Planos del evento</h4>
+
+                    {isLoadingPlanos ? (
+                        <p style={{ fontSize: '0.85rem', color: '#888' }}>Cargando planos...</p>
+                    ) : planos.length === 0 ? (
+                        <p style={{ fontSize: '0.85rem', color: '#888' }}>No hay planos guardados</p>
+                    ) : (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {planos.map(p => (
+                                <li key={p.id}>
+                                    <button
+                                        className={`toolbar__button ${planoId === p.id ? 'toolbar__button--active' : ''}`}
+                                        onClick={() => handleLoadPlano(p.id!)}
+                                        style={{ width: '100%', textAlign: 'left' }}
+                                    >
+                                        📄 {p.name}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    <button
+                        className="toolbar__button toolbar__button--ghost"
+                        onClick={handleNewPlano}
+                        style={{ marginTop: '8px' }}
+                    >
+                        + Nuevo Plano
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
 
 export default EventSelector;
+
