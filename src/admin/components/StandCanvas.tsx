@@ -101,34 +101,43 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       return
     }
 
-    const image = new window.Image()
-    image.crossOrigin = 'anonymous'
+    const loadImage = (useCors: boolean) => {
+      const image = new window.Image()
 
-    const isSvg = backgroundSrc.includes('image/svg+xml') ||
-      backgroundSrc.includes('.svg') ||
-      backgroundSrc.startsWith('<svg')
-
-    if (isSvg && backgroundSrc.startsWith('data:')) {
-      image.src = backgroundSrc
-    } else {
-      image.src = backgroundSrc
-    }
-
-    image.onload = () => {
-      const imgWidth = image.naturalWidth || image.width
-      const imgHeight = image.naturalHeight || image.height
-
-      if (imgWidth > 0 && imgHeight > 0) {
-        setCanvasSize(imgWidth, imgHeight)
-      } else {
-        console.warn('Imagen sin dimensiones validas')
+      // Only set crossOrigin for non-data URLs if using CORS
+      const isDataUrl = backgroundSrc.startsWith('data:')
+      if (useCors && !isDataUrl) {
+        image.crossOrigin = 'anonymous'
       }
-      setBackgroundImage(image)
+
+      image.onload = () => {
+        const imgWidth = image.naturalWidth || image.width
+        const imgHeight = image.naturalHeight || image.height
+
+        if (imgWidth > 0 && imgHeight > 0) {
+          setCanvasSize(imgWidth, imgHeight)
+        } else {
+          console.warn('Imagen sin dimensiones validas')
+        }
+        setBackgroundImage(image)
+      }
+
+      image.onerror = () => {
+        if (useCors && !isDataUrl) {
+          // Retry without CORS
+          console.log('Retrying image load without CORS...')
+          loadImage(false)
+        } else {
+          console.error('Error loading background image')
+          setBackgroundImage(null)
+        }
+      }
+
+      image.src = backgroundSrc
     }
-    image.onerror = (err) => {
-      console.error('Error loading background image:', err)
-      setBackgroundImage(null)
-    }
+
+    // Start with CORS enabled for external URLs
+    loadImage(true)
   }, [backgroundSrc, setCanvasSize])
 
   useEffect(() => {

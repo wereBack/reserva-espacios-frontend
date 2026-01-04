@@ -233,6 +233,7 @@ export interface SpaceUpdateData {
     name?: string;
     price?: number | null;
     active?: boolean;
+    status?: 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'BLOCKED';
 }
 
 export async function updateSpace(id: string, data: SpaceUpdateData): Promise<SpaceData> {

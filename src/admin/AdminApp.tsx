@@ -1,5 +1,6 @@
 import StandCanvas from './components/StandCanvas'
-import StandInspector from './components/StandInspector'
+import StandList from './components/StandList'
+import ZoneList from './components/ZoneList'
 import Toolbar from './components/Toolbar'
 import EventSelector from './components/EventSelector'
 import PendingReservations from './components/PendingReservations'
@@ -62,7 +63,8 @@ const AdminApp = () => {
                 {/* Right Panel - Inspector */}
                 <aside className="admin-inspector">
                     <PendingReservations />
-                    <StandInspector />
+                    <StandList />
+                    <ZoneList />
                 </aside>
             </div>
         </div>
@@ -70,3 +72,4 @@ const AdminApp = () => {
 }
 
 export default AdminApp
+
