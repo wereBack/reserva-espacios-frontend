@@ -215,13 +215,13 @@ const StandList = () => {
                                             onClick={() => handleSave(stand)}
                                             disabled={isSaving}
                                         >
-                                            {isSaving ? '...' : '💾'}
+                                            {isSaving ? '...' : 'Guardar'}
                                         </button>
                                         <button
                                             className="stand-list-item__btn stand-list-item__btn--delete"
                                             onClick={() => handleDelete(stand.id)}
                                         >
-                                            🗑️
+                                            Eliminar
                                         </button>
                                     </div>
                                 </div>

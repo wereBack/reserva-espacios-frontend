@@ -1829,6 +1829,7 @@
 
 .stand-list-item {
   border-bottom: 1px solid #f1f5f9;
+  margin: 0 5px;
 }
 
 .stand-list-item:last-child {
@@ -1841,6 +1842,7 @@
 
 .stand-list-item--expanded {
   background: #f8fafc;
+  flex-direction: column;
 }
 
 .stand-list-item__header {
@@ -1911,7 +1913,7 @@
 
 /* Expanded body */
 .stand-list-item__body {
-  padding: 0 1rem 1rem;
+  padding: 0 .2rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -1973,14 +1975,14 @@
 }
 
 .stand-list-item__btn {
-  width: 36px;
-  height: 36px;
+  padding: 0.5rem 0.75rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -2016,6 +2018,13 @@
 
 .stand-list-item__field--half {
   flex: 1;
+  min-width: 0;
+}
+
+.stand-list-item__field--half input,
+.stand-list-item__field--half select {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .stand-list-item__select {
