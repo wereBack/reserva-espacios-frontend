@@ -3,7 +3,7 @@ import { fetchEventos, createEvento, fetchPlanosByEvento, deletePlano, deleteEve
 import { useStandStore } from '../store/standStore';
 
 const EventSelector = () => {
-    const { eventoId, setEventoId, loadPlano, clearAll, planoId } = useStandStore();
+    const { eventoId, setEventoId, loadPlano, clearAll, planoId, newlyCreatedPlanoId, clearNewlyCreatedPlanoId } = useStandStore();
     const [eventos, setEventos] = useState<EventoData[]>([]);
     const [planos, setPlanos] = useState<PlanoData[]>([]);
     const [isLoadingPlanos, setIsLoadingPlanos] = useState(false);
@@ -18,7 +18,6 @@ const EventSelector = () => {
         loadEventos();
     }, []);
 
-    // Load planos when event changes
     useEffect(() => {
         if (eventoId) {
             loadPlanosForEvent(eventoId);
@@ -27,10 +26,22 @@ const EventSelector = () => {
         }
     }, [eventoId]);
 
+    // Recargar planos cuando se crea uno nuevo
+    useEffect(() => {
+        if (newlyCreatedPlanoId && eventoId) {
+            loadPlanosForEvent(eventoId);
+            clearNewlyCreatedPlanoId();
+        }
+    }, [newlyCreatedPlanoId, eventoId, clearNewlyCreatedPlanoId]);
+
     const loadEventos = async () => {
         try {
             const data = await fetchEventos();
             setEventos(data);
+            // Seleccionar el primer evento por defecto si no hay ninguno seleccionado
+            if (data.length > 0 && !eventoId) {
+                setEventoId(data[0].id);
+            }
         } catch (error) {
             console.error('Error cargando eventos', error);
         }
@@ -41,6 +52,10 @@ const EventSelector = () => {
         try {
             const data = await fetchPlanosByEvento(eventId);
             setPlanos(data);
+            // Seleccionar el primer plano por defecto
+            if (data.length > 0 && data[0].id) {
+                loadPlano(data[0].id);
+            }
         } catch (error) {
             console.error('Error cargando planos', error);
             setPlanos([]);
@@ -51,7 +66,6 @@ const EventSelector = () => {
 
     const handleEventChange = (newEventoId: string | null) => {
         setEventoId(newEventoId);
-        // Clear current plano when changing event
         clearAll();
     };
 
@@ -61,37 +75,34 @@ const EventSelector = () => {
 
     const handleNewPlano = () => {
         clearAll();
-        // Keep the event selected
         if (eventoId) {
             setEventoId(eventoId);
         }
     };
 
     const handleDeletePlano = async (planoIdToDelete: string) => {
-        if (!confirm('¿Estás seguro de eliminar este plano?')) return;
+        if (!confirm('¿Eliminar este plano?')) return;
         try {
             await deletePlano(planoIdToDelete);
             setPlanos(planos.filter(p => p.id !== planoIdToDelete));
             if (planoId === planoIdToDelete) {
                 clearAll();
             }
-            alert('Plano eliminado');
         } catch (error) {
-            alert(error instanceof Error ? error.message : 'Error al eliminar plano');
+            alert(error instanceof Error ? error.message : 'Error');
         }
     };
 
     const handleDeleteEvento = async () => {
         if (!eventoId) return;
-        if (!confirm('¿Estás seguro de eliminar este evento y todos sus planos?')) return;
+        if (!confirm('¿Eliminar este evento y todos sus planos?')) return;
         try {
             await deleteEvento(eventoId);
             setEventos(eventos.filter(e => e.id !== eventoId));
             setEventoId(null);
             clearAll();
-            alert('Evento eliminado');
         } catch (error) {
-            alert(error instanceof Error ? error.message : 'Error al eliminar evento');
+            alert(error instanceof Error ? error.message : 'Error');
         }
     };
 
@@ -110,113 +121,140 @@ const EventSelector = () => {
             setEventoId(newEvent.id);
             setIsCreating(false);
             setNewEventData({ nombre: '', fecha_reserva_desde: '', fecha_reserva_hasta: '' });
-        } catch (error) {
+        } catch {
             alert('Error al crear evento');
         }
     };
 
-    return (
-        <div className="toolbar__section event-selector">
-            <h3 className="toolbar__section-title">Evento</h3>
+    const selectedEvento = eventos.find(e => e.id === eventoId);
 
-            {!isCreating ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <select
-                        className="toolbar__input"
-                        value={eventoId || ''}
-                        onChange={(e) => handleEventChange(e.target.value || null)}
-                    >
-                        <option value="">-- Sin evento --</option>
-                        {eventos.map(e => (
-                            <option key={e.id} value={e.id}>{e.nombre}</option>
-                        ))}
-                    </select>
-                    <button
-                        className="toolbar__button"
-                        onClick={() => setIsCreating(true)}
-                    >
-                        + Nuevo Evento
-                    </button>
+    return (
+        <div className="event-plano-selector">
+            {/* Event Card */}
+            <div className="selector-card">
+                <div className="selector-card__header">
+                    <span className="selector-card__label">Evento</span>
                     {eventoId && (
                         <button
-                            className="toolbar__button toolbar__button--danger"
+                            className="selector-card__action selector-card__action--danger"
                             onClick={handleDeleteEvento}
-                            style={{ marginTop: '4px' }}
+                            title="Eliminar evento"
                         >
-                            Eliminar Evento
+                            ✕
                         </button>
                     )}
                 </div>
-            ) : (
-                <div className="event-creator" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <input
-                        type="text"
-                        placeholder="Nombre evento"
-                        className="toolbar__input"
-                        value={newEventData.nombre}
-                        onChange={e => setNewEventData({ ...newEventData, nombre: e.target.value })}
-                    />
-                    <label style={{ fontSize: '0.8rem', color: '#666' }}>Reserva Desde</label>
-                    <input
-                        type="datetime-local"
-                        className="toolbar__input"
-                        value={newEventData.fecha_reserva_desde}
-                        onChange={e => setNewEventData({ ...newEventData, fecha_reserva_desde: e.target.value })}
-                    />
-                    <label style={{ fontSize: '0.8rem', color: '#666' }}>Reserva Hasta</label>
-                    <input
-                        type="datetime-local"
-                        className="toolbar__input"
-                        value={newEventData.fecha_reserva_hasta}
-                        onChange={e => setNewEventData({ ...newEventData, fecha_reserva_hasta: e.target.value })}
-                    />
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                        <button className="toolbar__button toolbar__button--active" onClick={handleCreateEvento}>Crear</button>
-                        <button className="toolbar__button" onClick={() => setIsCreating(false)}>Cancelar</button>
+
+                {!isCreating ? (
+                    <div className="selector-card__body">
+                        <div className="selector-dropdown">
+                            <select
+                                value={eventoId || ''}
+                                onChange={(e) => handleEventChange(e.target.value || null)}
+                            >
+                                <option value="">Seleccionar evento...</option>
+                                {eventos.map(e => (
+                                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                                ))}
+                            </select>
+                            <button
+                                className="selector-dropdown__btn"
+                                onClick={() => setIsCreating(true)}
+                                title="Crear evento"
+                            >
+                                +
+                            </button>
+                        </div>
+                        {selectedEvento && (
+                            <div className="selector-card__info">
+                                📅 {new Date(selectedEvento.fecha_reserva_desde).toLocaleDateString()} - {new Date(selectedEvento.fecha_reserva_hasta).toLocaleDateString()}
+                            </div>
+                        )}
                     </div>
-                </div>
-            )}
+                ) : (
+                    <div className="selector-card__form">
+                        <input
+                            type="text"
+                            placeholder="Nombre del evento"
+                            value={newEventData.nombre}
+                            onChange={e => setNewEventData({ ...newEventData, nombre: e.target.value })}
+                        />
+                        <div className="selector-card__dates">
+                            <div className="selector-card__date">
+                                <label>Desde</label>
+                                <input
+                                    type="datetime-local"
+                                    value={newEventData.fecha_reserva_desde}
+                                    onChange={e => setNewEventData({ ...newEventData, fecha_reserva_desde: e.target.value })}
+                                />
+                            </div>
+                            <div className="selector-card__date">
+                                <label>Hasta</label>
+                                <input
+                                    type="datetime-local"
+                                    value={newEventData.fecha_reserva_hasta}
+                                    onChange={e => setNewEventData({ ...newEventData, fecha_reserva_hasta: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="selector-card__form-actions">
+                            <button className="selector-btn selector-btn--primary" onClick={handleCreateEvento}>
+                                Crear evento
+                            </button>
+                            <button className="selector-btn" onClick={() => setIsCreating(false)}>
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
 
-            {/* Planos section - only show when event is selected */}
+            {/* Divider */}
+            {eventoId && !isCreating && <div className="selector-divider" />}
+
+            {/* Planos Card */}
             {eventoId && !isCreating && (
-                <div style={{ marginTop: '16px' }}>
-                    <h4 className="toolbar__section-title">Planos del evento</h4>
+                <div className="selector-card selector-card--planos">
+                    <div className="selector-card__header">
+                        <span className="selector-card__label">Planos</span>
+                        <span className="selector-card__count">{planos.length}</span>
+                    </div>
 
-                    {isLoadingPlanos ? (
-                        <p style={{ fontSize: '0.85rem', color: '#888' }}>Cargando planos...</p>
-                    ) : planos.length === 0 ? (
-                        <p style={{ fontSize: '0.85rem', color: '#888' }}>No hay planos guardados</p>
-                    ) : (
-                        <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {planos.map(p => (
-                                <li key={p.id} style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                    <div className="selector-card__body">
+                        {isLoadingPlanos ? (
+                            <div className="selector-card__loading">Cargando...</div>
+                        ) : (
+                            <>
+                                <div className="plano-chips">
+                                    {planos.map(p => (
+                                        <div
+                                            key={p.id}
+                                            className={`plano-chip ${planoId === p.id ? 'plano-chip--active' : ''}`}
+                                        >
+                                            <button
+                                                className="plano-chip__name"
+                                                onClick={() => handleLoadPlano(p.id!)}
+                                            >
+                                                {p.name}
+                                            </button>
+                                            <button
+                                                className="plano-chip__delete"
+                                                onClick={() => handleDeletePlano(p.id!)}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
                                     <button
-                                        className={`toolbar__button ${planoId === p.id ? 'toolbar__button--active' : ''}`}
-                                        onClick={() => handleLoadPlano(p.id!)}
-                                        style={{ flex: 1, textAlign: 'left' }}
+                                        className="plano-chip plano-chip--new"
+                                        onClick={handleNewPlano}
                                     >
-                                        📄 {p.name}
+                                        + Nuevo
                                     </button>
-                                    <button
-                                        className="toolbar__button toolbar__button--danger"
-                                        onClick={() => handleDeletePlano(p.id!)}
-                                        style={{ padding: '4px 8px', fontSize: '0.8rem' }}
-                                        title="Eliminar plano"
-                                    >
-                                        Eliminar Plano
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-
-                    <button
-                        className="toolbar__button toolbar__button--ghost"
-                        onClick={handleNewPlano}
-                        style={{ marginTop: '8px' }}
-                    >
-                        + Nuevo Plano
-                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
@@ -224,4 +262,3 @@ const EventSelector = () => {
 };
 
 export default EventSelector;
-

@@ -1,51 +1,72 @@
-import { useState, useEffect } from 'react'
 import StandCanvas from './components/StandCanvas'
-import StandInspector from './components/StandInspector'
+import StandList from './components/StandList'
+import ZoneList from './components/ZoneList'
 import Toolbar from './components/Toolbar'
 import EventSelector from './components/EventSelector'
+import PendingReservations from './components/PendingReservations'
 import { useAuth } from '../auth/AuthContext'
 import { useStandStore } from './store/standStore'
 import './admin.css'
 
 const AdminApp = () => {
-    const [backgroundSrc, setBackgroundSrc] = useState<string>()
     const { user, logout } = useAuth()
+    const backgroundUrl = useStandStore((state) => state.backgroundUrl)
     const setBackgroundUrl = useStandStore((state) => state.setBackgroundUrl)
 
-    // Sync background with store
-    useEffect(() => {
-        if (backgroundSrc) {
-            setBackgroundUrl(backgroundSrc)
-        }
-    }, [backgroundSrc, setBackgroundUrl])
+    const handleBackgroundChange = (src?: string) => {
+        setBackgroundUrl(src || '')
+    }
 
     return (
-        <div className="app-shell">
-            <Toolbar onBackgroundChange={setBackgroundSrc} />
-
-            <main className="workspace">
-                <header className="workspace__header">
+        <div className="admin-layout">
+            {/* Top Header */}
+            <header className="admin-header">
+                <div className="admin-header__brand">
+                    <span className="admin-header__logo">🗺️</span>
                     <div>
-                        <div className="workspace__user-bar">
-                            <span>Hola, <strong>{user?.name || 'Admin'}</strong></span>
-                            <button onClick={logout} className="logout-btn">Cerrar sesión</button>
-                        </div>
-                        <h1>Plano interactivo – Feria de Empleo</h1>
-                        <p>
-                            Cargá la imagen del predio, elegí una herramienta y dibujá los
-                            stands. Usá el modo pintar para etiquetar zonas con colores según
-                            el pricing que necesites.
-                        </p>
+                        <h1 className="admin-header__title">Admin - Reserva Espacios</h1>
+                        <p className="admin-header__subtitle">Editor de planos interactivo</p>
                     </div>
-                    <EventSelector />
-                </header>
+                </div>
+                <div className="admin-header__user">
+                    <span className="admin-header__user-name">
+                        Hola, <strong>{user?.name || 'Admin'}</strong>
+                    </span>
+                    <button onClick={logout} className="admin-header__logout">
+                        Cerrar sesión
+                    </button>
+                </div>
+            </header>
 
-                <section className="workspace__canvas">
-                    <StandCanvas backgroundSrc={backgroundSrc} />
-                </section>
-            </main>
+            {/* Main Content */}
+            <div className="admin-content">
+                {/* Left Sidebar - Toolbar */}
+                <aside className="admin-sidebar">
+                    <Toolbar onBackgroundChange={handleBackgroundChange} />
+                </aside>
 
-            <StandInspector />
+                {/* Center - Workspace */}
+                <main className="admin-workspace">
+                    {/* Header with Event and Plano selectors */}
+                    <div className="workspace-header">
+                        <EventSelector />
+                    </div>
+
+                    {/* Canvas Area */}
+                    <div className="canvas-container">
+                        <div className="canvas-wrapper">
+                            <StandCanvas backgroundSrc={backgroundUrl} />
+                        </div>
+                    </div>
+                </main>
+
+                {/* Right Panel - Inspector */}
+                <aside className="admin-inspector">
+                    <PendingReservations />
+                    <StandList />
+                    <ZoneList />
+                </aside>
+            </div>
         </div>
     )
 }

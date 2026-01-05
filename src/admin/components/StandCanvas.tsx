@@ -2,7 +2,6 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import Konva from 'konva'
 import { Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
-import { useElementSize } from '../hooks/useElementSize'
 import type {
   DrawingMode,
   FreeShape,
@@ -28,7 +27,6 @@ const MIN_SHAPE_SIZE = 8
 const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const stageRef = useRef<Konva.Stage | null>(null)
-  const size = useElementSize(containerRef)
 
   const stands = useStandStore((state) => state.stands)
   const zones = useStandStore((state) => state.zones)
@@ -40,13 +38,15 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const selectStand = useStandStore((state) => state.selectStand)
   const updateStand = useStandStore((state) => state.updateStand)
   const updateZone = useStandStore((state) => state.updateZone)
+  const setCanvasSize = useStandStore((state) => state.setCanvasSize)
+  const canvasWidth = useStandStore((state) => state.canvasWidth)
+  const canvasHeight = useStandStore((state) => state.canvasHeight)
   const rectPreset = useStandStore((state) => {
     if (!state.rectPresetId) return null
     return state.presets.find((preset) => preset.id === state.rectPresetId) ?? null
   })
 
-  const [backgroundImage, setBackgroundImage] =
-    useState<HTMLImageElement | null>(null)
+  const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
   const [rectDraft, setRectDraft] = useState<RectShape | null>(null)
   const [rectStart, setRectStart] = useState<{ x: number; y: number } | null>(null)
   const [polygonPoints, setPolygonPoints] = useState<number[]>([])
@@ -54,7 +54,46 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const [isFreeDrawing, setIsFreeDrawing] = useState(false)
   const [draftContext, setDraftContext] = useState<DraftContext>(null)
 
+  // Container size tracking for auto-fit
+  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 })
+
   const modeMeta = useMemo(() => parseMode(mode), [mode])
+
+  // Track container size
+  useEffect(() => {
+    const updateContainerSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        setContainerSize({ width: rect.width, height: rect.height })
+      }
+    }
+
+    updateContainerSize()
+    window.addEventListener('resize', updateContainerSize)
+
+    // Also observe container itself
+    const resizeObserver = new ResizeObserver(updateContainerSize)
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateContainerSize)
+      resizeObserver.disconnect()
+    }
+  }, [])
+
+  // Calculate scale to fit image in container
+  const scale = useMemo(() => {
+    if (!canvasWidth || !canvasHeight) return 1
+    const scaleX = containerSize.width / canvasWidth
+    const scaleY = containerSize.height / canvasHeight
+    return Math.min(scaleX, scaleY, 1) // Don't scale up beyond 100%
+  }, [containerSize.width, containerSize.height, canvasWidth, canvasHeight])
+
+  // Display dimensions (scaled)
+  const displayWidth = canvasWidth * scale
+  const displayHeight = canvasHeight * scale
 
   useEffect(() => {
     if (!backgroundSrc) {
@@ -62,11 +101,44 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       return
     }
 
-    const image = new window.Image()
-    image.src = backgroundSrc
-    image.onload = () => setBackgroundImage(image)
-    image.onerror = () => setBackgroundImage(null)
-  }, [backgroundSrc])
+    const loadImage = (useCors: boolean) => {
+      const image = new window.Image()
+
+      // Only set crossOrigin for non-data URLs if using CORS
+      const isDataUrl = backgroundSrc.startsWith('data:')
+      if (useCors && !isDataUrl) {
+        image.crossOrigin = 'anonymous'
+      }
+
+      image.onload = () => {
+        const imgWidth = image.naturalWidth || image.width
+        const imgHeight = image.naturalHeight || image.height
+
+        if (imgWidth > 0 && imgHeight > 0) {
+          setCanvasSize(imgWidth, imgHeight)
+        } else {
+          console.warn('Imagen sin dimensiones validas')
+        }
+        setBackgroundImage(image)
+      }
+
+      image.onerror = () => {
+        if (useCors && !isDataUrl) {
+          // Retry without CORS
+          console.log('Retrying image load without CORS...')
+          loadImage(false)
+        } else {
+          console.error('Error loading background image')
+          setBackgroundImage(null)
+        }
+      }
+
+      image.src = backgroundSrc
+    }
+
+    // Start with CORS enabled for external URLs
+    loadImage(true)
+  }, [backgroundSrc, setCanvasSize])
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -87,15 +159,40 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const getPointerPosition = () => {
     const stage = stageRef.current
     const pointer = stage?.getPointerPosition()
-    if (!pointer) {
-      return null
+    if (!pointer) return null
+    // Adjust for scale
+    return {
+      x: pointer.x / scale,
+      y: pointer.y / scale,
     }
-    return pointer
   }
 
   const commitShape = (shape: Stand | Zone, subject: Subject) => {
     if (subject === 'stand') {
-      addStand(shape as Stand)
+      const stand = shape as Stand
+      let standWithPrice = stand
+
+      if (stand.kind === 'rect') {
+        const standCenterX = stand.x + stand.width / 2
+        const standCenterY = stand.y + stand.height / 2
+
+        for (const zone of zones) {
+          if (zone.kind === 'rect') {
+            const isInside =
+              standCenterX >= zone.x &&
+              standCenterX <= zone.x + zone.width &&
+              standCenterY >= zone.y &&
+              standCenterY <= zone.y + zone.height
+
+            if (isInside && zone.price != null) {
+              standWithPrice = { ...stand, price: zone.price }
+              break
+            }
+          }
+        }
+      }
+
+      addStand(standWithPrice)
     } else {
       addZone(shape as Zone)
     }
@@ -264,22 +361,38 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
 
   const canDragStand = modeMeta.subject === 'stand' && modeMeta.tool === 'select'
 
+  // Colores según estado de reserva
+  const getStandFillColor = (stand: Stand): string => {
+    switch (stand.reservationStatus) {
+      case 'PENDING':
+        return '#fbbf24' // Amarillo-naranja
+      case 'RESERVED':
+        return '#ef4444' // Rojo
+      case 'BLOCKED':
+        return '#9ca3af' // Gris
+      case 'AVAILABLE':
+      default:
+        return '#22c55e' // Verde
+    }
+  }
+
   const renderShape = (shape: Stand | Zone, subject: Subject) => {
     const isSelected = subject === 'stand' && shape.id === selectedStandId
     const stroke =
-      subject === 'stand' ? (isSelected ? '#1d3557' : '#2b2d42') : '#475569'
+      subject === 'stand' ? (isSelected ? '#1d3557' : '#64748b') : '#475569'
     const strokeWidth = isSelected ? 3 : 1.25
     const opacity = subject === 'zone' ? 0.45 : 1
     const isStand = subject === 'stand'
+    const fillColor = isStand ? getStandFillColor(shape as Stand) : shape.color
 
     const dragProps =
       isStand && canDragStand
         ? {
-            draggable: true,
-            onDragStart: () => selectStand(shape.id),
-            onDragEnd: (event: KonvaEventObject<DragEvent>) =>
-              handleStandDragEnd(event, shape as Stand),
-          }
+          draggable: true,
+          onDragStart: () => selectStand(shape.id),
+          onDragEnd: (event: KonvaEventObject<DragEvent>) =>
+            handleStandDragEnd(event, shape as Stand),
+        }
         : {}
 
     let shapeNode: ReactNode
@@ -291,7 +404,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           y={shape.y}
           width={shape.width}
           height={shape.height}
-          fill={shape.color}
+          fill={fillColor}
           opacity={opacity}
           stroke={stroke}
           strokeWidth={strokeWidth}
@@ -303,7 +416,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         <Line
           points={shape.points}
           closed
-          fill={shape.color}
+          fill={fillColor}
           opacity={opacity}
           stroke={stroke}
           strokeWidth={strokeWidth}
@@ -316,7 +429,8 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       shapeNode = (
         <Line
           points={shape.points}
-          stroke={subject === 'zone' ? '#475569' : shape.color}
+          stroke={stroke}
+          fill={fillColor}
           opacity={opacity}
           strokeWidth={strokeWidth}
           lineCap="round"
@@ -361,11 +475,24 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   }, [modeMeta.tool])
 
   return (
-    <div ref={containerRef} className="canvas-shell">
+    <div
+      ref={containerRef}
+      className="canvas-shell"
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}
+    >
       <Stage
         ref={stageRef}
-        width={size.width}
-        height={size.height}
+        width={displayWidth}
+        height={displayHeight}
+        scaleX={scale}
+        scaleY={scale}
         className="canvas-stage"
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleStageMouseMove}
@@ -376,16 +503,16 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           {backgroundImage ? (
             <KonvaImage
               image={backgroundImage}
-              width={size.width}
-              height={size.height}
+              width={canvasWidth}
+              height={canvasHeight}
               listening={false}
             />
           ) : (
             <Rect
               x={0}
               y={0}
-              width={size.width}
-              height={size.height}
+              width={canvasWidth}
+              height={canvasHeight}
               fill="#f1f3f5"
               listening={false}
             />
@@ -555,4 +682,3 @@ const renderStandLabel = (shape: Stand) => {
     />
   )
 }
-

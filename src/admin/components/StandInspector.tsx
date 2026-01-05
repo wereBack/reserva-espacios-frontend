@@ -1,158 +1,151 @@
-import type { Stand, Zone } from '../store/standStore'
-import { useStandStore } from '../store/standStore'
+import { useState, useEffect } from 'react'
+import { useStandStore, type Stand } from '../store/standStore'
+import { updateSpace as apiUpdateSpace, type SpaceUpdateData } from '../services/api'
 
 const StandInspector = () => {
-  const stands = useStandStore((state) => state.stands)
-  const zones = useStandStore((state) => state.zones)
-  const selectedStandId = useStandStore((state) => state.selectedStandId)
-  const selectStand = useStandStore((state) => state.selectStand)
-  const updateStand = useStandStore((state) => state.updateStand)
-  const updateZone = useStandStore((state) => state.updateZone)
-  const removeStand = useStandStore((state) => state.removeStand)
-  const removeZone = useStandStore((state) => state.removeZone)
+    const selectedStandId = useStandStore((state) => state.selectedStandId)
+    const stands = useStandStore((state) => state.stands)
+    const updateStand = useStandStore((state) => state.updateStand)
+    const removeStand = useStandStore((state) => state.removeStand)
+    const selectStand = useStandStore((state) => state.selectStand)
 
-  const handleLabelChange = (stand: Stand, label: string) => {
-    updateStand(stand.id, { label: label.trim() === '' ? undefined : label })
-  }
+    const stand = stands.find((s) => s.id === selectedStandId)
 
-  const handlePriceChange = (stand: Stand, priceStr: string) => {
-    const price = priceStr === '' ? undefined : parseFloat(priceStr)
-    updateStand(stand.id, { price })
-  }
+    const [label, setLabel] = useState('')
+    const [price, setPrice] = useState('')
+    const [isSaving, setIsSaving] = useState(false)
 
-  const handleZonePriceChange = (zone: Zone, priceStr: string) => {
-    const price = priceStr === '' ? undefined : parseFloat(priceStr)
-    updateZone(zone.id, { price })
-  }
+    // Sincronizar inputs con el stand seleccionado
+    useEffect(() => {
+        if (stand) {
+            setLabel(stand.label || '')
+            setPrice(stand.price?.toString() || '')
+        } else {
+            setLabel('')
+            setPrice('')
+        }
+    }, [stand])
 
-  const handleZoneLabelChange = (zone: Zone, label: string) => {
-    updateZone(zone.id, { label: label.trim() === '' ? undefined : label })
-  }
+    // Guardar cambios (local y remotamente si tiene ID válido)
+    const handleSave = async () => {
+        if (!stand) return
 
-  return (
-    <aside className="inspector">
-      <div className="inspector__header">
-        <div>
-          <p className="inspector__title">Stands</p>
-          <small>{stands.length} creados</small>
-        </div>
-      </div>
+        const updates: Partial<Stand> & SpaceUpdateData = {
+            label,
+            name: label,
+            price: price ? parseFloat(price) : undefined,
+        }
 
-      {stands.length === 0 ? (
-        <p className="inspector__empty">
-          Dibujá tus primeros stands ☝️ con las herramientas de la izquierda.
-        </p>
-      ) : (
-        <ul className="inspector__list">
-          {stands.map((stand, index) => (
-            <li
-              key={stand.id}
-              className={`inspector__item ${selectedStandId === stand.id ? 'inspector__item--active' : ''
-                }`}
-            >
-              <button
-                className="inspector__item-main"
-                onClick={() => selectStand(stand.id)}
-              >
-                <span className="inspector__item-name">
-                  {stand.label ?? `Stand ${index + 1}`}
-                </span>
-                <span className="inspector__badge">{stand.kind}</span>
-              </button>
+        // Actualizar localmente
+        updateStand(stand.id, updates)
 
-              <div className="inspector__item-body">
-                <label className="inspector__field">
-                  Nombre
-                  <input
-                    className="inspector__input"
-                    placeholder={`Stand ${index + 1}`}
-                    value={stand.label ?? ''}
-                    onChange={(event) =>
-                      handleLabelChange(stand, event.target.value)
-                    }
-                  />
-                </label>
-                <div className="inspector__meta">
-                  <span>{formatStandMeta(stand)}</span>
+        // Si el stand parece ser un UUID (guardado en DB), intentar actualizar remoto
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stand.id)
+        if (isUUID) {
+            setIsSaving(true)
+            try {
+                await apiUpdateSpace(stand.id, {
+                    name: label,
+                    price: price ? parseFloat(price) : null,
+                })
+            } catch {
+                console.error('Error al guardar stand en servidor')
+            } finally {
+                setIsSaving(false)
+            }
+        }
+    }
+
+    // Eliminar stand
+    const handleDelete = () => {
+        if (!stand) return
+        if (confirm('¿Eliminar este stand?')) {
+            removeStand(stand.id)
+            selectStand(null)
+        }
+    }
+
+    if (!stand) {
+        return (
+            <div className="stand-inspector stand-inspector--empty">
+                <div className="stand-inspector__empty-state">
+                    <span className="stand-inspector__empty-icon">📍</span>
+                    <h4>Ningún stand seleccionado</h4>
+                    <p>Selecciona un stand en el canvas para ver y editar sus propiedades</p>
                 </div>
-                <label className="inspector__field">
-                  Precio
-                  <input
-                    className="inspector__input"
-                    type="number"
-                    placeholder="Precio (opcional)"
-                    value={stand.price ?? ''}
-                    onChange={(event) =>
-                      handlePriceChange(stand, event.target.value)
-                    }
-                  />
-                </label>
+            </div>
+        )
+    }
+
+    return (
+        <div className="stand-inspector">
+            <div className="stand-inspector__header">
+                <h3>
+                    <span className="stand-inspector__icon">📍</span>
+                    Propiedades del Stand
+                </h3>
+            </div>
+
+            <div className="stand-inspector__content">
+                {/* Nombre/Label */}
+                <div className="stand-inspector__field">
+                    <label htmlFor="stand-label">Nombre</label>
+                    <input
+                        id="stand-label"
+                        type="text"
+                        value={label}
+                        onChange={(e) => setLabel(e.target.value)}
+                        placeholder="Ej: Stand A1"
+                    />
+                </div>
+
+                {/* Precio */}
+                <div className="stand-inspector__field">
+                    <label htmlFor="stand-price">Precio ($)</label>
+                    <input
+                        id="stand-price"
+                        type="number"
+                        value={price}
+                        onChange={(e) => setPrice(e.target.value)}
+                        placeholder="Ej: 1500"
+                        min="0"
+                        step="100"
+                    />
+                </div>
+
+                {/* Dimensiones (solo lectura) */}
+                {stand.kind === 'rect' && (
+                    <div className="stand-inspector__dimensions">
+                        <span className="stand-inspector__dimension">
+                            📐 {Math.round(stand.width)} × {Math.round(stand.height)} px
+                        </span>
+                    </div>
+                )}
+
+                {/* ID (solo lectura) */}
+                <div className="stand-inspector__id">
+                    <span className="stand-inspector__id-label">ID:</span>
+                    <span className="stand-inspector__id-value">{stand.id.slice(0, 8)}...</span>
+                </div>
+            </div>
+
+            <div className="stand-inspector__actions">
                 <button
-                  className="inspector__delete"
-                  onClick={() => removeStand(stand.id)}
+                    className="stand-inspector__btn stand-inspector__btn--save"
+                    onClick={handleSave}
+                    disabled={isSaving}
                 >
-                  Eliminar
+                    {isSaving ? 'Guardando...' : '💾 Guardar'}
                 </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <section className="inspector__zones">
-        <p className="inspector__title">Zonas ({zones.length})</p>
-        {zones.length === 0 ? (
-          <p className="inspector__empty inspector__empty--compact">
-            Aún no marcaste zonas.
-          </p>
-        ) : (
-          <ul className="inspector__zone-list">
-            {zones.map((zone, index) => (
-              <li key={zone.id} className="inspector__zone-item">
-                <div className="inspector__zone-row">
-                  <span
-                    className="inspector__zone-dot"
-                    style={{ backgroundColor: zone.color }}
-                  />
-                  <input
-                    className="inspector__input inspector__input--small"
-                    placeholder={`Zona ${index + 1}`}
-                    value={zone.label ?? ''}
-                    onChange={(e) => handleZoneLabelChange(zone, e.target.value)}
-                  />
-                  <button
-                    className="inspector__zone-delete"
-                    onClick={() => removeZone(zone.id)}
-                    aria-label="Eliminar zona"
-                  >
-                    ×
-                  </button>
-                </div>
-                <input
-                  className="inspector__input inspector__input--small"
-                  type="number"
-                  placeholder="Precio zona"
-                  value={zone.price ?? ''}
-                  onChange={(e) => handleZonePriceChange(zone, e.target.value)}
-                  style={{ marginTop: '4px' }}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </aside>
-  )
-}
-
-const formatStandMeta = (stand: Stand) => {
-  if (stand.kind === 'rect') {
-    return `${Math.round(stand.width)}×${Math.round(stand.height)} px`
-  }
-  if (stand.kind === 'free') {
-    return `${Math.round(stand.points.length / 2)} pts`
-  }
-  return `${Math.round(stand.points.length / 2)} vértices`
+                <button
+                    className="stand-inspector__btn stand-inspector__btn--delete"
+                    onClick={handleDelete}
+                >
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+    )
 }
 
 export default StandInspector

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { createPlano, updatePlano, fetchPlano, type PlanoData } from '../services/api'
+import { createPlano, updatePlano, fetchPlano, uploadPlanoImage, type PlanoData } from '../services/api'
 
 export type DrawingMode =
   | 'select'
@@ -37,7 +37,11 @@ export type FreeShape = BaseShape & {
   points: number[]
 }
 
-export type Stand = RectShape | PolygonShape | FreeShape
+export type ReservationState = 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'BLOCKED'
+
+export type Stand = (RectShape | PolygonShape | FreeShape) & {
+  reservationStatus?: ReservationState
+}
 export type Zone = RectShape | PolygonShape | FreeShape
 
 export type RectPreset = {
@@ -53,10 +57,12 @@ type StandStore = {
   planoName: string
   eventoId: string | null
   backgroundUrl: string
+  backgroundFile: File | null
   canvasWidth: number
   canvasHeight: number
   isSaving: boolean
   lastSaved: Date | null
+  newlyCreatedPlanoId: string | null
 
   // Drawing state
   stands: Stand[]
@@ -72,9 +78,11 @@ type StandStore = {
   setPlanoName: (name: string) => void
   setEventoId: (id: string | null) => void
   setBackgroundUrl: (url: string) => void
+  setBackgroundFile: (file: File | null) => void
   setCanvasSize: (width: number, height: number) => void
   savePlano: () => Promise<void>
   loadPlano: (id: string) => Promise<void>
+  clearNewlyCreatedPlanoId: () => void
 
   // Drawing actions
   addStand: (stand: Stand) => void
@@ -135,6 +143,21 @@ const shapeToApiFormat = (shape: Stand | Zone, index: number) => {
 
 // Helper to convert backend format to frontend shape
 const apiToShapeFormat = (data: PlanoData['spaces'][0]): Stand => {
+  // Determine reservation status
+  let reservationStatus: ReservationState = 'AVAILABLE'
+
+  if (data.active === false) {
+    reservationStatus = 'BLOCKED'
+  } else if (data.reservations && data.reservations.length > 0) {
+    // Check for active reservations
+    const activeReservation = data.reservations.find(
+      r => r.estado === 'RESERVED' || r.estado === 'PENDING'
+    )
+    if (activeReservation) {
+      reservationStatus = activeReservation.estado === 'RESERVED' ? 'RESERVED' : 'PENDING'
+    }
+  }
+
   return {
     id: data.id || crypto.randomUUID(),
     kind: 'rect',
@@ -145,6 +168,7 @@ const apiToShapeFormat = (data: PlanoData['spaces'][0]): Stand => {
     color: data.color,
     label: data.name,
     price: data.price,
+    reservationStatus,
   }
 }
 
@@ -177,10 +201,12 @@ export const useStandStore = create<StandStore>((set, get) => ({
   planoName: 'Nuevo Plano',
   eventoId: null,
   backgroundUrl: '',
+  backgroundFile: null,
   canvasWidth: 800,
   canvasHeight: 600,
   isSaving: false,
   lastSaved: null,
+  newlyCreatedPlanoId: null,
 
   // Drawing state
   stands: [],
@@ -196,13 +222,25 @@ export const useStandStore = create<StandStore>((set, get) => ({
   setPlanoName: (name) => set({ planoName: name }),
   setEventoId: (id) => set({ eventoId: id }),
   setBackgroundUrl: (url) => set({ backgroundUrl: url }),
+  setBackgroundFile: (file) => set({ backgroundFile: file }),
   setCanvasSize: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
+  clearNewlyCreatedPlanoId: () => set({ newlyCreatedPlanoId: null }),
 
   savePlano: async () => {
     const state = get()
     set({ isSaving: true })
 
     try {
+      let backgroundUrl = state.backgroundUrl
+
+      // Si hay un archivo nuevo, subirlo primero a S3
+      if (state.backgroundFile) {
+        const uploadResult = await uploadPlanoImage(state.backgroundFile)
+        backgroundUrl = uploadResult.url
+        // Limpiar el archivo despues de subir y actualizar la URL
+        set({ backgroundFile: null, backgroundUrl: backgroundUrl })
+      }
+
       // First prepare zones with temporary IDs for reference
       const zonesWithIds = state.zones.map((zone, i) => ({
         ...shapeToApiFormat(zone, i),
@@ -222,7 +260,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
 
       const planoData: PlanoData = {
         name: state.planoName,
-        url: state.backgroundUrl,
+        url: backgroundUrl,
         width: state.canvasWidth,
         height: state.canvasHeight,
         evento_id: state.eventoId || undefined,
@@ -231,6 +269,8 @@ export const useStandStore = create<StandStore>((set, get) => ({
       }
 
       let result: PlanoData
+      const isNewPlano = !state.planoId
+      
       if (state.planoId) {
         result = await updatePlano(state.planoId, planoData)
       } else {
@@ -240,7 +280,9 @@ export const useStandStore = create<StandStore>((set, get) => ({
       set({
         planoId: result.id || null,
         isSaving: false,
-        lastSaved: new Date()
+        lastSaved: new Date(),
+        // Solo setear si es un plano nuevo
+        newlyCreatedPlanoId: isNewPlano ? (result.id || null) : null
       })
 
       alert('Plano guardado correctamente')
@@ -318,6 +360,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
     planoId: null,
     planoName: 'Nuevo Plano',
     backgroundUrl: '',
+    backgroundFile: null,
   }),
   undoLast: () =>
     set((state) => {
