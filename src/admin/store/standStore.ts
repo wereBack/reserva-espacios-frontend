@@ -62,6 +62,7 @@ type StandStore = {
   canvasHeight: number
   isSaving: boolean
   lastSaved: Date | null
+  newlyCreatedPlanoId: string | null
 
   // Drawing state
   stands: Stand[]
@@ -81,6 +82,7 @@ type StandStore = {
   setCanvasSize: (width: number, height: number) => void
   savePlano: () => Promise<void>
   loadPlano: (id: string) => Promise<void>
+  clearNewlyCreatedPlanoId: () => void
 
   // Drawing actions
   addStand: (stand: Stand) => void
@@ -204,6 +206,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
   canvasHeight: 600,
   isSaving: false,
   lastSaved: null,
+  newlyCreatedPlanoId: null,
 
   // Drawing state
   stands: [],
@@ -221,6 +224,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
   setBackgroundUrl: (url) => set({ backgroundUrl: url }),
   setBackgroundFile: (file) => set({ backgroundFile: file }),
   setCanvasSize: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
+  clearNewlyCreatedPlanoId: () => set({ newlyCreatedPlanoId: null }),
 
   savePlano: async () => {
     const state = get()
@@ -265,6 +269,8 @@ export const useStandStore = create<StandStore>((set, get) => ({
       }
 
       let result: PlanoData
+      const isNewPlano = !state.planoId
+      
       if (state.planoId) {
         result = await updatePlano(state.planoId, planoData)
       } else {
@@ -274,7 +280,9 @@ export const useStandStore = create<StandStore>((set, get) => ({
       set({
         planoId: result.id || null,
         isSaving: false,
-        lastSaved: new Date()
+        lastSaved: new Date(),
+        // Solo setear si es un plano nuevo
+        newlyCreatedPlanoId: isNewPlano ? (result.id || null) : null
       })
 
       alert('Plano guardado correctamente')

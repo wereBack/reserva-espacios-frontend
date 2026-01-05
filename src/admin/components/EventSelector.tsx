@@ -3,7 +3,7 @@ import { fetchEventos, createEvento, fetchPlanosByEvento, deletePlano, deleteEve
 import { useStandStore } from '../store/standStore';
 
 const EventSelector = () => {
-    const { eventoId, setEventoId, loadPlano, clearAll, planoId } = useStandStore();
+    const { eventoId, setEventoId, loadPlano, clearAll, planoId, newlyCreatedPlanoId, clearNewlyCreatedPlanoId } = useStandStore();
     const [eventos, setEventos] = useState<EventoData[]>([]);
     const [planos, setPlanos] = useState<PlanoData[]>([]);
     const [isLoadingPlanos, setIsLoadingPlanos] = useState(false);
@@ -26,6 +26,14 @@ const EventSelector = () => {
         }
     }, [eventoId]);
 
+    // Recargar planos cuando se crea uno nuevo
+    useEffect(() => {
+        if (newlyCreatedPlanoId && eventoId) {
+            loadPlanosForEvent(eventoId);
+            clearNewlyCreatedPlanoId();
+        }
+    }, [newlyCreatedPlanoId, eventoId, clearNewlyCreatedPlanoId]);
+
     const loadEventos = async () => {
         try {
             const data = await fetchEventos();
@@ -40,6 +48,10 @@ const EventSelector = () => {
         try {
             const data = await fetchPlanosByEvento(eventId);
             setPlanos(data);
+            // Seleccionar el primer plano por defecto
+            if (data.length > 0 && data[0].id) {
+                loadPlano(data[0].id);
+            }
         } catch (error) {
             console.error('Error cargando planos', error);
             setPlanos([]);
@@ -105,7 +117,7 @@ const EventSelector = () => {
             setEventoId(newEvent.id);
             setIsCreating(false);
             setNewEventData({ nombre: '', fecha_reserva_desde: '', fecha_reserva_hasta: '' });
-        } catch (error) {
+        } catch {
             alert('Error al crear evento');
         }
     };
