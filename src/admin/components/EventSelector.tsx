@@ -38,6 +38,10 @@ const EventSelector = () => {
         try {
             const data = await fetchEventos();
             setEventos(data);
+            // Seleccionar el primer evento por defecto si no hay ninguno seleccionado
+            if (data.length > 0 && !eventoId) {
+                setEventoId(data[0].id);
+            }
         } catch (error) {
             console.error('Error cargando eventos', error);
         }
