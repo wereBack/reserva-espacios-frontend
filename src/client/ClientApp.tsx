@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import LoginModal from '../auth/LoginModal'
 import { usePlanos } from './hooks/usePlanos'
 import { useReservationSocket } from './hooks/useReservationSocket'
 import { createReservation } from './services/api'
@@ -53,7 +52,7 @@ const getEffectivePrice = (space: SpaceData, zones: ZoneData[]): number | null =
 }
 
 const ClientApp = () => {
-    const { isAuthenticated, user, logout, setShowLoginModal } = useAuth()
+    const { isAuthenticated, user, login, logout } = useAuth()
     const { planos, isLoading, error, refetch } = usePlanos()
     const [selectedEventoId, setSelectedEventoId] = useState<string | null>(null)
     const [selectedPlanoIndex, setSelectedPlanoIndex] = useState(0)
@@ -137,14 +136,9 @@ const ClientApp = () => {
                             </button>
                         </>
                     ) : (
-                        <>
-                            <button type="button" className="ghost-btn" onClick={() => setShowLoginModal(true)}>
-                                Iniciar sesión
-                            </button>
-                            <button type="button" className="ghost-btn ghost-btn--accent" onClick={() => setShowLoginModal(true)}>
-                                Registrarse
-                            </button>
-                        </>
+                        <button type="button" className="ghost-btn ghost-btn--accent" onClick={login}>
+                            Iniciar sesión
+                        </button>
                     )}
                 </div>
             </header>
@@ -249,7 +243,7 @@ const ClientApp = () => {
                                             {!isAuthenticated && selectedSpaceStatus === 'disponible' && (
                                                 <button
                                                     className="reserve-btn reserve-btn--outline"
-                                                    onClick={() => setShowLoginModal(true)}
+                                                    onClick={login}
                                                 >
                                                     Iniciar sesión para reservar
                                                 </button>
@@ -348,7 +342,6 @@ const ClientApp = () => {
                 )}
             </main>
 
-            <LoginModal />
         </div>
     )
 }
