@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import Konva from 'konva'
 import { Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text } from 'react-konva'
+import { toProxyUrl } from '../../utils/imageProxy'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type {
   DrawingMode,
@@ -192,14 +193,12 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       return
     }
 
-    const loadImage = (useCors: boolean) => {
-      const image = new window.Image()
+    // Convertir URL de S3 a URL del proxy para evitar CORS
+    const imageUrl = toProxyUrl(backgroundSrc)
 
-      // Only set crossOrigin for non-data URLs if using CORS
-      const isDataUrl = backgroundSrc.startsWith('data:')
-      if (useCors && !isDataUrl) {
-        image.crossOrigin = 'anonymous'
-      }
+    const loadImage = () => {
+      const image = new window.Image()
+      image.crossOrigin = 'anonymous'
 
       image.onload = () => {
         const imgWidth = image.naturalWidth || image.width
@@ -214,22 +213,24 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       }
 
       image.onerror = () => {
-        if (useCors && !isDataUrl) {
-          // Retry without CORS
-          console.log('Retrying image load without CORS...')
-          loadImage(false)
-        } else {
-          console.error('Error loading background image')
-          setBackgroundImage(null)
-        }
+        console.error('Error loading background image:', imageUrl)
+        setBackgroundImage(null)
       }
 
-      image.src = backgroundSrc
+      image.src = imageUrl
     }
 
-    // Start with CORS enabled for external URLs
-    loadImage(true)
+    loadImage()
   }, [backgroundSrc, setCanvasSize])
+
+  const resetDrafts = () => {
+    setRectDraft(null)
+    setRectStart(null)
+    setPolygonPoints([])
+    setFreePoints([])
+    setIsFreeDrawing(false)
+    setDraftContext(null)
+  }
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -288,15 +289,6 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       addZone(shape as Zone)
     }
     resetDrafts()
-  }
-
-  const resetDrafts = () => {
-    setRectDraft(null)
-    setRectStart(null)
-    setPolygonPoints([])
-    setFreePoints([])
-    setIsFreeDrawing(false)
-    setDraftContext(null)
   }
 
   const handleStageMouseDown = (event: KonvaEventObject<MouseEvent>) => {

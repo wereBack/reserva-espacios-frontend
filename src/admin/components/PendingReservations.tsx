@@ -7,6 +7,8 @@ import {
     type ReservationData,
 } from '../services/api'
 import { useStandStore } from '../store/standStore'
+import { useAuth } from '../../auth/AuthContext'
+import keycloak from '../../auth/keycloak'
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5001'
 
@@ -31,11 +33,20 @@ const PendingReservations = () => {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     
+    // Auth context para verificar autenticación
+    const { isAuthenticated, hasRole } = useAuth()
+    
     // Acceso al store para actualizar stands
     const updateStand = useStandStore((state) => state.updateStand)
 
     // Cargar reservas pendientes
     const loadReservations = useCallback(async () => {
+        // Solo cargar si está autenticado y tiene rol Admin
+        if (!isAuthenticated || !hasRole('Admin')) {
+            setLoading(false)
+            return
+        }
+        
         try {
             setError(null)
             const pending = await fetchPendingReservations()
@@ -45,7 +56,7 @@ const PendingReservations = () => {
         } finally {
             setLoading(false)
         }
-    }, [])
+    }, [isAuthenticated, hasRole])
 
     // Helper para calcular el estado del stand basado en los datos
     const getReservationStatus = (space: SpaceEvent['space']) => {
@@ -59,18 +70,30 @@ const PendingReservations = () => {
         return 'AVAILABLE'
     }
 
-    // Conectar WebSocket
+    // Conectar WebSocket con autenticación
     useEffect(() => {
+        // Solo conectar si está autenticado
+        if (!isAuthenticated) return
+        
+        // Obtener token para autenticar WebSocket
+        const token = keycloak.token
+        
         const newSocket = io(`${API_BASE}/reservas`, {
             transports: ['websocket', 'polling'],
+            auth: { token },
+            query: { token },
         })
 
         newSocket.on('connect', () => {
-            console.log('🔌 Admin WebSocket conectado al namespace /reservas')
+            console.log('Admin WebSocket conectado')
         })
 
         newSocket.on('disconnect', () => {
-            console.log('❌ Admin WebSocket desconectado')
+            console.log('Admin WebSocket desconectado')
+        })
+        
+        newSocket.on('auth_error', (data) => {
+            console.error('Error de autenticacion WebSocket:', data.error)
         })
 
         // Escuchar eventos de reservas
@@ -141,7 +164,7 @@ const PendingReservations = () => {
         return () => {
             newSocket.disconnect()
         }
-    }, [updateStand])
+    }, [updateStand, isAuthenticated])
 
     // Cargar reservas al inicio
     useEffect(() => {
