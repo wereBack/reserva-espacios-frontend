@@ -233,15 +233,17 @@ const ClientApp = () => {
                                                 <span className="meta-label">Dimensiones</span>
                                                 <span className="meta-value">{selectedSpace.width} x {selectedSpace.height} m</span>
                                             </div>
-                                            <div className="meta-item">
-                                                <span className="meta-label">Precio</span>
-                                                <span className="meta-value meta-value--price">
-                                                    {(() => {
-                                                        const effectivePrice = getEffectivePrice(selectedSpace, activePlano.zones)
-                                                        return effectivePrice ? formatPrice(effectivePrice) : 'Consultar'
-                                                    })()}
-                                                </span>
-                                            </div>
+                                            {selectedSpaceStatus !== 'reservado' && (
+                                                <div className="meta-item">
+                                                    <span className="meta-label">Precio</span>
+                                                    <span className="meta-value meta-value--price">
+                                                        {(() => {
+                                                            const effectivePrice = getEffectivePrice(selectedSpace, activePlano.zones)
+                                                            return effectivePrice ? formatPrice(effectivePrice) : 'Consultar'
+                                                        })()}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Action buttons */}
@@ -363,12 +365,14 @@ const ClientApp = () => {
                                                     </span>
                                                 </div>
                                                 <div className="stand-list-item__meta">
-                                                    <span className="stand-list-item__price">
-                                                        {(() => {
-                                                            const effectivePrice = getEffectivePrice(space, activePlano.zones)
-                                                            return effectivePrice ? `US$ ${effectivePrice.toLocaleString('es-AR')}` : 'Consultar'
-                                                        })()}
-                                                    </span>
+                                                    {status !== 'reservado' && (
+                                                        <span className="stand-list-item__price">
+                                                            {(() => {
+                                                                const effectivePrice = getEffectivePrice(space, activePlano.zones)
+                                                                return effectivePrice ? `US$ ${effectivePrice.toLocaleString('es-AR')}` : 'Consultar'
+                                                            })()}
+                                                        </span>
+                                                    )}
                                                     <span className={`stand-list-item__status stand-list-item__status--${status}`}>
                                                         {STATUS_LABELS[status]}
                                                     </span>

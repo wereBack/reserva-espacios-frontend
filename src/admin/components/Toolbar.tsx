@@ -5,14 +5,10 @@ type ToolbarMode = 'stands' | 'zones'
 
 const STAND_TOOLS = [
   { id: 'stand-rect', label: 'Rectángulo', desc: 'Dibuja stands rectangulares' },
-  { id: 'stand-polygon', label: 'Polígono', desc: 'Crea formas de múltiples lados' },
-  { id: 'stand-free', label: 'Trazo libre', desc: 'Dibuja a mano alzada' },
 ] as const
 
 const ZONE_TOOLS = [
   { id: 'zone-rect', label: 'Zona rectangular', desc: 'Área rectangular grande' },
-  { id: 'zone-polygon', label: 'Zona polígono', desc: 'Área con múltiples lados' },
-  { id: 'zone-free', label: 'Zona libre', desc: 'Área a mano alzada' },
   { id: 'zone-paint', label: 'Pintar zona', desc: 'Cambia el color de zonas' },
 ] as const
 

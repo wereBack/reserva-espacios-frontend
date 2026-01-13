@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
-import { fetchEventos, createEvento, fetchPlanosByEvento, deletePlano, deleteEvento, type EventoData, type PlanoData } from '../services/api';
+import { fetchEventos, createEvento, fetchPlanosByEvento, deletePlano, deleteEvento, updateEvento, type EventoData, type PlanoData } from '../services/api';
 import { useStandStore } from '../store/standStore';
 
 const EventSelector = () => {
-    const { 
-        eventoId, setEventoId, loadPlano, clearAll, planoId, 
+    const {
+        eventoId, setEventoId, loadPlano, clearAll, planoId,
         newlyCreatedPlanoId, clearNewlyCreatedPlanoId,
         planoName, setPlanoName,
         savePlano, isSaving
     } = useStandStore();
-    
+
     const [eventos, setEventos] = useState<EventoData[]>([]);
     const [planos, setPlanos] = useState<PlanoData[]>([]);
     const [isLoadingPlanos, setIsLoadingPlanos] = useState(false);
@@ -170,11 +170,29 @@ const EventSelector = () => {
         if (!confirm('¿Eliminar este evento y todas sus áreas?')) return;
         try {
             await deleteEvento(eventoId);
-            setEventos(eventos.filter(e => e.id !== eventoId));
-            setEventoId(null);
+            const remaining = eventos.filter(e => e.id !== eventoId);
+            setEventos(remaining);
+            if (remaining.length > 0) {
+                setEventoId(remaining[0].id);
+            } else {
+                setEventoId(null);
+            }
             clearAll();
         } catch (error) {
             alert(error instanceof Error ? error.message : 'Error');
+        }
+    };
+
+    const handleToggleVisibility = async () => {
+        if (!eventoId) return;
+        const currentEvento = eventos.find(e => e.id === eventoId);
+        if (!currentEvento) return;
+
+        try {
+            const updated = await updateEvento(eventoId, { visible: !currentEvento.visible });
+            setEventos(eventos.map(e => e.id === eventoId ? { ...e, visible: updated.visible } : e));
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'Error al cambiar visibilidad');
         }
     };
 
@@ -188,6 +206,7 @@ const EventSelector = () => {
                 nombre: newEventData.nombre,
                 fecha_reserva_desde: new Date(newEventData.fecha_reserva_desde).toISOString(),
                 fecha_reserva_hasta: new Date(newEventData.fecha_reserva_hasta).toISOString(),
+                visible: true,
             });
             setEventos([...eventos, newEvent]);
             setEventoId(newEvent.id);
@@ -212,10 +231,12 @@ const EventSelector = () => {
                             <select
                                 value={eventoId || ''}
                                 onChange={(e) => handleEventChange(e.target.value || null)}
+                                className={selectedEvento && !selectedEvento.visible ? 'header-selector__select--hidden' : ''}
                             >
-                                <option value="">Seleccionar...</option>
                                 {eventos.map(e => (
-                                    <option key={e.id} value={e.id}>{e.nombre}</option>
+                                    <option key={e.id} value={e.id}>
+                                        {e.nombre}{!e.visible ? ' (oculto)' : ''}
+                                    </option>
                                 ))}
                             </select>
                             <button
@@ -225,6 +246,24 @@ const EventSelector = () => {
                             >
                                 +
                             </button>
+                            {eventoId && (
+                                <>
+                                    <button
+                                        className={`header-selector__visibility-btn ${selectedEvento?.visible ? 'header-selector__visibility-btn--visible' : 'header-selector__visibility-btn--hidden'}`}
+                                        onClick={handleToggleVisibility}
+                                        title={selectedEvento?.visible ? 'Ocultar evento para clientes' : 'Mostrar evento a clientes'}
+                                    >
+                                        {selectedEvento?.visible ? '👁' : '👁‍🗨'}
+                                    </button>
+                                    <button
+                                        className="header-selector__delete-btn"
+                                        onClick={handleDeleteEvento}
+                                        title="Eliminar evento"
+                                    >
+                                        🗑
+                                    </button>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <div className="header-selector__form">
@@ -286,7 +325,7 @@ const EventSelector = () => {
                                                 </button>
                                             </div>
                                         ))}
-                                        
+
                                         {isCreatingNewArea ? (
                                             // Editando nombre de nueva área
                                             <div className="area-chip area-chip--active area-chip--editing">

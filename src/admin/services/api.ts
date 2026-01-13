@@ -86,14 +86,20 @@ export interface EventoData {
     nombre: string;
     fecha_reserva_desde: string;
     fecha_reserva_hasta: string;
+    visible: boolean;
 }
 
-export async function fetchEventos(): Promise<EventoData[]> {
-    return api.get<EventoData[]>('/eventos/', { skipAuth: true });
+export async function fetchEventos(visibleOnly: boolean = false): Promise<EventoData[]> {
+    const params = visibleOnly ? '?visible_only=true' : '';
+    return api.get<EventoData[]>(`/eventos/${params}`, { skipAuth: true });
 }
 
 export async function createEvento(data: Omit<EventoData, 'id'>): Promise<EventoData> {
     return api.post<EventoData>('/eventos/', data);
+}
+
+export async function updateEvento(id: string, data: Partial<Omit<EventoData, 'id'>>): Promise<EventoData> {
+    return api.patch<EventoData>(`/eventos/${id}`, data);
 }
 
 export async function deleteEvento(id: string): Promise<void> {

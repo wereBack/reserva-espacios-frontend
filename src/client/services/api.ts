@@ -77,7 +77,8 @@ export async function fetchPlano(id: string): Promise<PlanoData> {
 // ==================== EVENTOS API (Públicos) ====================
 
 export async function fetchEventos(): Promise<EventoData[]> {
-    return api.get<EventoData[]>('/eventos/', { skipAuth: true });
+    // Solo eventos visibles para clientes
+    return api.get<EventoData[]>('/eventos/?visible_only=true', { skipAuth: true });
 }
 
 // ==================== RESERVACIONES API (Requieren Auth) ====================

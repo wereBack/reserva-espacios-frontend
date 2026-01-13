@@ -126,6 +126,35 @@
   justify-content: center;
 }
 
+/* Empty message when no events */
+.canvas-empty-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem;
+  color: #64748b;
+}
+
+.canvas-empty-message__icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.canvas-empty-message h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  color: #334155;
+}
+
+.canvas-empty-message p {
+  margin: 0;
+  font-size: 1rem;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
 /* Right Panel */
 .admin-inspector {
   width: 320px;
@@ -1174,6 +1203,67 @@
 
 .header-selector__add-btn:hover {
   background: var(--um-blue-dark);
+}
+
+/* Botón eliminar evento */
+.header-selector__delete-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.header-selector__delete-btn:hover {
+  background: #fecaca;
+  border-color: #dc2626;
+}
+
+/* Botón toggle visibilidad */
+.header-selector__visibility-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.header-selector__visibility-btn--visible {
+  background: #d1fae5;
+  color: #059669;
+  border-color: #a7f3d0;
+}
+
+.header-selector__visibility-btn--visible:hover {
+  background: #a7f3d0;
+}
+
+.header-selector__visibility-btn--hidden {
+  background: #fef3c7;
+  color: #d97706;
+  border-color: #fde68a;
+}
+
+.header-selector__visibility-btn--hidden:hover {
+  background: #fde68a;
+}
+
+/* Select con evento oculto */
+.header-selector__select--hidden {
+  border-color: #fde68a !important;
+  background: #fffbeb !important;
 }
 
 .header-selector__chips {
