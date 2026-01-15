@@ -110,7 +110,7 @@ export async function deleteEvento(id: string): Promise<void> {
 
 export interface ReservationData {
     id: string;
-    estado: 'PENDING' | 'RESERVED' | 'EXPIRED' | 'CANCELLED';
+    estado: 'PENDING' | 'RESERVED' | 'EXPIRED' | 'CANCELLED' | 'CANCELLATION_REQUESTED';
     asignee: string | null;
     user_id: string | null;
     space_id: string;
@@ -163,6 +163,31 @@ export async function confirmReservation(id: string): Promise<ConfirmReservation
 
 export async function rejectReservation(id: string): Promise<ReservationData> {
     const data = await api.post<ReservationResponse>(`/api/reservas/${id}/reject`);
+    return data.reservation;
+}
+
+// ==================== CANCELLATION REQUESTS API ====================
+
+export async function fetchCancellationRequests(): Promise<ReservationData[]> {
+    const data = await api.get<PendingReservationsResponse>('/api/reservas/cancellation-requests');
+    return data.reservations;
+}
+
+export interface ApproveCancellationResult {
+    reservation: ReservationData;
+    updatedSpaceName?: string;
+}
+
+export async function approveCancellation(id: string): Promise<ApproveCancellationResult> {
+    const data = await api.post<ConfirmReservationResponse>(`/api/reservas/${id}/approve-cancellation`);
+    return {
+        reservation: data.reservation,
+        updatedSpaceName: data.updated_space_name
+    };
+}
+
+export async function rejectCancellation(id: string): Promise<ReservationData> {
+    const data = await api.post<ReservationResponse>(`/api/reservas/${id}/reject-cancellation`);
     return data.reservation;
 }
 

@@ -30,10 +30,10 @@ const Legend = ({ zones = [] }: LegendProps) => {
           <p className="legend-card__title">Zonas</p>
           <div className="legend-card__chips">
             {zones.map((zone) => (
-              <span 
-                key={zone.id} 
-                className="chip chip--soft" 
-                style={{ backgroundColor: `${zone.color}22`, borderColor: zone.color }}
+              <span
+                key={zone.id}
+                className="chip chip--soft"
+                style={{ backgroundColor: `${zone.color}22` }}
               >
                 <span className="chip__dot" style={{ backgroundColor: zone.color }} />
                 {zone.name}

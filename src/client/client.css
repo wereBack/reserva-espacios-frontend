@@ -329,6 +329,10 @@ body {
   border-radius: 50%;
 }
 
+.chip--soft {
+  border: none;
+}
+
 /* ===== DETAILS SECTION ===== */
 .details-section {
   display: grid;

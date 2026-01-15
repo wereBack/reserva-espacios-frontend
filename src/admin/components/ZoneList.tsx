@@ -2,6 +2,19 @@ import { useState } from 'react'
 import { useStandStore, type Zone } from '../store/standStore'
 import { updateZone as apiUpdateZone, deleteZone as apiDeleteZone, createZone as apiCreateZone } from '../services/api'
 
+// Simple toast notification
+const showToast = (message: string) => {
+    const toast = document.createElement('div')
+    toast.className = 'toast-notification toast-notification--success'
+    toast.textContent = message
+    document.body.appendChild(toast)
+
+    setTimeout(() => {
+        toast.classList.add('toast-notification--fade-out')
+        setTimeout(() => toast.remove(), 300)
+    }, 2500)
+}
+
 const ZoneList = () => {
     const zones = useStandStore((state) => state.zones)
     const planoId = useStandStore((state) => state.planoId)
@@ -86,6 +99,7 @@ const ZoneList = () => {
                     price: editValues.price ? parseFloat(editValues.price) : null,
                     color: editValues.color,
                 })
+                showToast(`✅ Zona "${editValues.name}" guardada correctamente`)
             } else {
                 // Create new zone
                 if (!planoId) {
@@ -125,6 +139,7 @@ const ZoneList = () => {
                     replaceZoneId(zone.id, created.id)
                     setExpandedId(created.id)
                 }
+                showToast(`✅ Zona "${editValues.name || 'Nueva Zona'}" creada correctamente`)
             }
         } catch (e) {
             console.error('Error saving zone:', e)
