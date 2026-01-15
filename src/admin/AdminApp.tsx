@@ -9,6 +9,7 @@ import PendingCancellations from './components/PendingCancellations'
 import { useAuth } from '../auth/AuthContext'
 import { useStandStore } from './store/standStore'
 import { fetchEventos } from './services/api'
+import logoUM from '../assets/LogoUniversidadMontevideo.png'
 import './admin.css'
 
 const AdminApp = () => {
@@ -35,7 +36,7 @@ const AdminApp = () => {
             <header className="admin-header">
                 <div className="admin-header__brand">
                     <img
-                        src="/src/assets/LogoUniversidadMontevideo.png"
+                        src={logoUM}
                         alt="Universidad de Montevideo"
                         className="admin-header__logo"
                     />

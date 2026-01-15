@@ -8,6 +8,7 @@ import Legend from './components/Legend'
 import EventSelector from './components/EventSelector'
 import MyReservations from './components/MyReservations'
 import UserProfile from './components/UserProfile'
+import logoUM from '../assets/LogoUniversidadMontevideo.png'
 import {
     getSpaceStatus,
     getEffectivePrice,
@@ -114,7 +115,7 @@ const ClientApp = () => {
             <header className="client-topbar">
                 <div className="client-topbar__brand">
                     <img
-                        src="/src/assets/LogoUniversidadMontevideo.png"
+                        src={logoUM}
                         alt="Universidad de Montevideo"
                         className="client-topbar__logo"
                     />
