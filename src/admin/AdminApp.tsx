@@ -5,6 +5,7 @@ import ZoneList from './components/ZoneList'
 import Toolbar from './components/Toolbar'
 import EventSelector from './components/EventSelector'
 import PendingReservations from './components/PendingReservations'
+import PendingCancellations from './components/PendingCancellations'
 import { useAuth } from '../auth/AuthContext'
 import { useStandStore } from './store/standStore'
 import { fetchEventos } from './services/api'
@@ -91,6 +92,7 @@ const AdminApp = () => {
                 {/* Right Panel - Inspector */}
                 <aside className="admin-inspector">
                     <PendingReservations />
+                    <PendingCancellations />
                     <StandList />
                     <ZoneList />
                 </aside>

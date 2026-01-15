@@ -104,12 +104,26 @@ const StandList = () => {
             return
         }
 
+        // Determinar si hay que resetear el nombre (cuando cambia a AVAILABLE o BLOCKED)
+        let finalName = editValues.name
+        const wasReservedOrPending = stand.reservationStatus === 'RESERVED' || stand.reservationStatus === 'PENDING'
+        const isNowAvailableOrBlocked = editValues.status === 'AVAILABLE' || editValues.status === 'BLOCKED'
+
+        if (wasReservedOrPending && isNowAvailableOrBlocked) {
+            // Calcular nombre genérico basado en la posición en la lista
+            const standIndex = stands.findIndex(s => s.id === stand.id)
+            finalName = `Stand ${standIndex + 1}`
+        }
+
         const updates = {
-            label: editValues.name,
+            label: finalName,
             price: parseFloat(editValues.price) || 0,
             reservationStatus: editValues.status,
         }
         updateStand(stand.id, updates)
+
+        // Actualizar el valor en el form también
+        setEditValues(prev => ({ ...prev, name: finalName }))
 
         // Check if UUID (saved in DB)
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stand.id)
@@ -119,11 +133,11 @@ const StandList = () => {
             if (isUUID) {
                 // Update existing stand
                 await apiUpdateSpace(stand.id, {
-                    name: editValues.name,
+                    name: finalName,
                     price: parseFloat(editValues.price) || null,
                     status: editValues.status,
                 })
-                showToast(`✅ Stand "${editValues.name}" guardado correctamente`)
+                showToast(`✅ Stand "${finalName}" guardado correctamente`)
             } else {
                 // Create new stand
                 if (!planoId) {

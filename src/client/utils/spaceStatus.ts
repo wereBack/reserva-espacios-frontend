@@ -13,10 +13,11 @@ export const getSpaceStatus = (
   if (!space.active) return 'bloqueado'
   if (space.reservations && space.reservations.length > 0) {
     const activeReservation = space.reservations.find(
-      (r) => r.estado === 'RESERVED' || r.estado === 'PENDING'
+      (r) => r.estado === 'RESERVED' || r.estado === 'PENDING' || r.estado === 'CANCELLATION_REQUESTED'
     )
     if (activeReservation?.estado === 'PENDING') return 'pendiente'
-    if (activeReservation?.estado === 'RESERVED') return 'reservado'
+    // CANCELLATION_REQUESTED se muestra como reservado hasta que el admin apruebe
+    if (activeReservation?.estado === 'RESERVED' || activeReservation?.estado === 'CANCELLATION_REQUESTED') return 'reservado'
   }
   return 'disponible'
 }

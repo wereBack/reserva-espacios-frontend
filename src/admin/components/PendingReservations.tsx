@@ -67,10 +67,12 @@ const PendingReservations = () => {
     const getReservationStatus = (space: SpaceEvent['space']) => {
         if (!space.active) return 'BLOCKED'
         const activeReservation = space.reservations?.find(
-            r => r.estado === 'RESERVED' || r.estado === 'PENDING'
+            r => r.estado === 'RESERVED' || r.estado === 'PENDING' || r.estado === 'CANCELLATION_REQUESTED'
         )
         if (activeReservation) {
-            return activeReservation.estado === 'RESERVED' ? 'RESERVED' : 'PENDING'
+            if (activeReservation.estado === 'PENDING') return 'PENDING'
+            // CANCELLATION_REQUESTED se trata como RESERVED hasta que el admin apruebe
+            return 'RESERVED'
         }
         return 'AVAILABLE'
     }
