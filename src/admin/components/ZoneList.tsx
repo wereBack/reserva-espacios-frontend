@@ -24,7 +24,7 @@ const ZoneList = () => {
     const isZoneNameDuplicate = useStandStore((state) => state.isZoneNameDuplicate)
 
     const [expandedId, setExpandedId] = useState<string | null>(null)
-    const [editValues, setEditValues] = useState<{ name: string; price: string; color: string }>({ name: '', price: '', color: '#ffb703' })
+    const [editValues, setEditValues] = useState<{ name: string; description: string; price: string; color: string }>({ name: '', description: '', price: '', color: '#ffb703' })
     const [isSaving, setIsSaving] = useState(false)
     const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
@@ -66,6 +66,7 @@ const ZoneList = () => {
             setExpandedId(zone.id)
             setEditValues({
                 name: zone.label || '',
+                description: zone.description || '',
                 price: zone.price?.toString() || '',
                 color: zone.color || '#ffb703',
             })
@@ -82,6 +83,7 @@ const ZoneList = () => {
 
         const updates = {
             label: editValues.name,
+            description: editValues.description,
             price: editValues.price ? parseFloat(editValues.price) : undefined,
             color: editValues.color,
         }
@@ -96,8 +98,13 @@ const ZoneList = () => {
                 // Update existing zone
                 await apiUpdateZone(zone.id, {
                     name: editValues.name,
+                    description: editValues.description,
                     price: editValues.price ? parseFloat(editValues.price) : null,
                     color: editValues.color,
+                    x: zone.x,
+                    y: zone.y,
+                    width: zone.width,
+                    height: zone.height,
                 })
                 showToast(`✅ Zona "${editValues.name}" guardada correctamente`)
             } else {
@@ -118,6 +125,7 @@ const ZoneList = () => {
                     height: zone.kind === 'rect' ? zone.height : 100,
                     color: editValues.color,
                     name: editValues.name || 'Nueva Zona',
+                    description: editValues.description,
                     price: editValues.price ? parseFloat(editValues.price) : null,
                 }
 
@@ -233,6 +241,16 @@ const ZoneList = () => {
                                             value={editValues.name}
                                             onChange={(e) => setEditValues({ ...editValues, name: e.target.value })}
                                             placeholder="Nombre de la zona"
+                                        />
+                                    </div>
+
+                                    <div className="zone-list-item__field">
+                                        <label>DESCRIPCIÓN</label>
+                                        <textarea
+                                            value={editValues.description}
+                                            onChange={(e) => setEditValues({ ...editValues, description: e.target.value })}
+                                            placeholder="Descripción de la zona (opcional)"
+                                            rows={2}
                                         />
                                     </div>
 

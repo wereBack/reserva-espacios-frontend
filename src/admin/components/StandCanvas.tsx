@@ -14,6 +14,7 @@ import type {
 } from '../store/standStore'
 import { useStandStore } from '../store/standStore'
 import CanvasControls from '../../components/CanvasControls'
+import ShapeCreationModal from './ShapeCreationModal'
 
 type Subject = 'stand' | 'zone'
 type ToolAction = 'select' | 'paint' | 'rect' | 'polygon' | 'free'
@@ -38,6 +39,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const addStand = useStandStore((state) => state.addStand)
   const addZone = useStandStore((state) => state.addZone)
   const selectStand = useStandStore((state) => state.selectStand)
+  const selectZone = useStandStore((state) => state.selectZone)
   const updateStand = useStandStore((state) => state.updateStand)
   const updateZone = useStandStore((state) => state.updateZone)
   const setCanvasSize = useStandStore((state) => state.setCanvasSize)
@@ -62,6 +64,9 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const [freePoints, setFreePoints] = useState<number[]>([])
   const [isFreeDrawing, setIsFreeDrawing] = useState(false)
   const [draftContext, setDraftContext] = useState<DraftContext>(null)
+
+  // Pending shape for modal confirmation
+  const [pendingShape, setPendingShape] = useState<{ shape: Stand | Zone; subject: Subject } | null>(null)
 
   // Container size tracking for auto-fit
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 })
@@ -300,14 +305,15 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
               standCenterY <= zone.y + zone.height
 
             if (isInside && zone.price != null) {
-              standWithLabel = { ...standWithLabel, price: zone.price }
+              standWithLabel = { ...standWithLabel, price: zone.price, zone_id: zone.id }
               break
             }
           }
         }
       }
 
-      addStand(standWithLabel)
+      // Show modal for stand configuration
+      setPendingShape({ shape: standWithLabel, subject: 'stand' })
     } else {
       const zone = shape as Zone
 
@@ -325,9 +331,43 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       const nextZoneNum = getNextZoneNumber()
       const zoneWithLabel = { ...zone, label: `Zona nueva ${nextZoneNum}` }
 
-      addZone(zoneWithLabel)
+      // Show modal for zone configuration
+      setPendingShape({ shape: zoneWithLabel, subject: 'zone' })
     }
     resetDrafts()
+  }
+
+  // Handle modal confirmation
+  const handleModalConfirm = (data: { name: string; color: string; price?: number; description?: string }) => {
+    if (!pendingShape) return
+
+    const { shape, subject } = pendingShape
+
+    if (subject === 'stand') {
+      const finalStand = {
+        ...shape,
+        label: data.name,
+        color: data.color,
+        price: data.price,
+      } as Stand
+      addStand(finalStand)
+    } else {
+      const finalZone = {
+        ...shape,
+        label: data.name,
+        color: data.color,
+        price: data.price,
+        description: data.description,
+      } as Zone
+      addZone(finalZone)
+    }
+
+    setPendingShape(null)
+  }
+
+  // Handle modal cancel
+  const handleModalCancel = () => {
+    setPendingShape(null)
   }
 
   const handleStageMouseDown = (event: KonvaEventObject<MouseEvent>) => {
@@ -451,13 +491,91 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       return
     }
 
-    if (shape.kind === 'rect') {
-      updateStand(shape.id, { x: shape.x + deltaX, y: shape.y + deltaY })
+    // Calculate new position (rect shapes only)
+    const newX = shape.x + deltaX
+    const newY = shape.y + deltaY
+
+    // Check for overlap with other stands at new position (exclude current stand)
+    const overlappingStand = checkOverlap({ x: newX, y: newY, width: shape.width, height: shape.height }, shape.id)
+    if (overlappingStand) {
+      // Don't allow the move - position is already reset by node.position({ x: 0, y: 0 })
+      alert(`¡No se puede mover el stand! Se superpone con "${overlappingStand.label || 'otro stand'}"`)
       return
     }
 
-    const nextPoints = translatePoints(shape.points, deltaX, deltaY)
-    updateStand(shape.id, { points: nextPoints })
+    // Calculate center of stand for zone detection
+    const centerX = newX + shape.width / 2
+    const centerY = newY + shape.height / 2
+
+    // Find containing zone
+    let newZoneId: string | undefined = undefined
+    let newPrice: number | undefined = undefined
+    for (const zone of zones) {
+      if (zone.kind === 'rect') {
+        const isInside =
+          centerX >= zone.x &&
+          centerX <= zone.x + zone.width &&
+          centerY >= zone.y &&
+          centerY <= zone.y + zone.height
+
+        if (isInside) {
+          newZoneId = zone.id
+          // Inherit zone price if zone has one
+          if (zone.price != null) {
+            newPrice = zone.price
+          }
+          break
+        }
+      }
+    }
+
+    // Update stand with new position, zone_id, and inherited price
+    const updates: Partial<Stand> = { x: newX, y: newY, zone_id: newZoneId }
+    if (newPrice !== undefined) {
+      updates.price = newPrice
+    }
+    updateStand(shape.id, updates)
+  }
+
+  const handleZoneDragEnd = (
+    event: KonvaEventObject<DragEvent>,
+    zone: Zone,
+  ) => {
+    const node = event.target
+    const deltaX = node.x()
+    const deltaY = node.y()
+    node.position({ x: 0, y: 0 })
+
+    if (deltaX === 0 && deltaY === 0) {
+      return
+    }
+
+    // Calculate new position
+    const newX = zone.x + deltaX
+    const newY = zone.y + deltaY
+
+    // Update zone with new position
+    updateZone(zone.id, { x: newX, y: newY })
+
+    // Disassociate stands that were in this zone but are now outside
+    const newZoneBounds = { x: newX, y: newY, width: zone.width, height: zone.height }
+    stands.forEach(stand => {
+      if (stand.zone_id === zone.id) {
+        // Check if stand center is still inside the zone
+        const standCenterX = stand.x + stand.width / 2
+        const standCenterY = stand.y + stand.height / 2
+        const isStillInside =
+          standCenterX >= newZoneBounds.x &&
+          standCenterX <= newZoneBounds.x + newZoneBounds.width &&
+          standCenterY >= newZoneBounds.y &&
+          standCenterY <= newZoneBounds.y + newZoneBounds.height
+
+        if (!isStillInside) {
+          // Disassociate the stand from this zone
+          updateStand(stand.id, { zone_id: undefined })
+        }
+      }
+    })
   }
 
   const handleShapeClick = (
@@ -476,12 +594,16 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       return
     }
 
+    // Select stands or zones depending on subject
     if (subject === 'stand') {
       selectStand(shape.id)
+    } else if (subject === 'zone') {
+      selectZone(shape.id)
     }
   }
 
   const canDragStand = modeMeta.subject === 'stand' && modeMeta.tool === 'select'
+  const canDragZone = modeMeta.subject === 'zone' && modeMeta.tool === 'select'
 
   // Colores según estado de reserva
   const getStandFillColor = (stand: Stand): string => {
@@ -515,7 +637,14 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           onDragEnd: (event: KonvaEventObject<DragEvent>) =>
             handleStandDragEnd(event, shape as Stand),
         }
-        : {}
+        : !isStand && canDragZone
+          ? {
+            draggable: true,
+            onDragStart: () => selectZone(shape.id),
+            onDragEnd: (event: KonvaEventObject<DragEvent>) =>
+              handleZoneDragEnd(event, shape as Zone),
+          }
+          : {}
 
     let shapeNode: ReactNode
 
@@ -577,7 +706,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     }
 
     return (
-      <Group key={`zone-${shape.id}`} onClick={(event) => handleShapeClick(event, shape, subject)}>
+      <Group key={`zone-${shape.id}`} onClick={(event) => handleShapeClick(event, shape, subject)} {...dragProps}>
         {shapeNode}
       </Group>
     )
@@ -755,6 +884,16 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         minScale={MIN_SCALE}
         maxScale={MAX_SCALE}
         showPanHint={true}
+      />
+
+      <ShapeCreationModal
+        isOpen={pendingShape !== null}
+        type={pendingShape?.subject === 'zone' ? 'zone' : 'stand'}
+        defaultName={pendingShape?.shape.label || ''}
+        defaultColor={pendingShape?.shape.color || color}
+        defaultPrice={pendingShape?.shape.price}
+        onConfirm={handleModalConfirm}
+        onCancel={handleModalCancel}
       />
     </div>
   )

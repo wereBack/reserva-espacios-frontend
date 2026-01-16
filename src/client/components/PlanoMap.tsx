@@ -1,11 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Group, Layer, Rect, Stage, Text, Image as KonvaImage } from 'react-konva'
-import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type { PlanoData, SpaceData, ZoneData } from '../services/api'
 import { useElementSize } from '../../hooks/useElementSize'
-import { useCanvasNavigation } from '../../hooks/useCanvasNavigation'
-import CanvasControls from '../../components/CanvasControls'
 import { toProxyUrl } from '../../utils/imageProxy'
 
 type PlanoMapProps = {
@@ -23,31 +20,22 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 
 const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
     const containerRef = useRef<HTMLDivElement | null>(null)
-    const stageRef = useRef<Konva.Stage | null>(null)
     const size = useElementSize(containerRef)
     const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
 
-    const aspectRatio = plano.width / plano.height
-    const stageDimensions = useMemo(() => {
-        const availableWidth = size.width || 800
-        const idealHeight = availableWidth / aspectRatio
-        const viewportLimit =
-            typeof window !== 'undefined' ? Math.max(320, window.innerHeight * 0.7) : Number.POSITIVE_INFINITY
-        const height = Math.min(idealHeight, viewportLimit)
-        const scale = height / plano.height
-        const width = plano.width * scale
-        return { width, height, scale }
-    }, [size.width, aspectRatio, plano.height, plano.width])
+    // Use actual image dimensions when available, fallback to plano dimensions
+    const canvasWidth = backgroundImage?.naturalWidth || plano.width
+    const canvasHeight = backgroundImage?.naturalHeight || plano.height
+    const aspectRatio = canvasWidth / canvasHeight
 
-    // Canvas navigation (zoom/pan)
-    const [navState, navActions] = useCanvasNavigation(stageRef, {
-        canvasWidth: plano.width * stageDimensions.scale,
-        canvasHeight: plano.height * stageDimensions.scale,
-        containerWidth: stageDimensions.width,
-        containerHeight: stageDimensions.height,
-        minScale: 0.5,
-        maxScale: 4,
-    })
+    const stageDimensions = useMemo(() => {
+        // Always use full available width
+        const width = size.width || 800
+        // Calculate height based on aspect ratio
+        const height = width / aspectRatio
+        const scale = width / canvasWidth
+        return { width, height, scale }
+    }, [size.width, aspectRatio, canvasWidth])
 
     useEffect(() => {
         if (!plano.url) {
@@ -92,13 +80,6 @@ const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
         return 'disponible'
     }
 
-    const handleDragEnd = (e: KonvaEventObject<DragEvent>) => {
-        navActions.setPosition({
-            x: e.target.x(),
-            y: e.target.y(),
-        })
-    }
-
     return (
         <div ref={containerRef} className="stand-map__shell">
             <div
@@ -114,32 +95,24 @@ const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
                 }}
             >
                 <Stage
-                    ref={stageRef}
                     width={stageDimensions.width}
                     height={stageDimensions.height}
-                    scaleX={navState.scale}
-                    scaleY={navState.scale}
-                    x={navState.position.x}
-                    y={navState.position.y}
-                    draggable
-                    onWheel={navActions.handleWheel}
-                    onDragEnd={handleDragEnd}
                 >
                     {/* Background layer */}
                     <Layer listening={false}>
                         {backgroundImage ? (
                             <KonvaImage
                                 image={backgroundImage}
-                                width={plano.width * stageDimensions.scale}
-                                height={plano.height * stageDimensions.scale}
+                                width={canvasWidth * stageDimensions.scale}
+                                height={canvasHeight * stageDimensions.scale}
                                 listening={false}
                             />
                         ) : (
                             <Rect
                                 x={0}
                                 y={0}
-                                width={plano.width * stageDimensions.scale}
-                                height={plano.height * stageDimensions.scale}
+                                width={canvasWidth * stageDimensions.scale}
+                                height={canvasHeight * stageDimensions.scale}
                                 fill="#f4f5f7"
                                 listening={false}
                             />
@@ -206,16 +179,6 @@ const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
                         })}
                     </Layer>
                 </Stage>
-
-                <CanvasControls
-                    scale={navState.scale}
-                    onZoomIn={navActions.zoomIn}
-                    onZoomOut={navActions.zoomOut}
-                    onReset={navActions.resetView}
-                    onFitToScreen={navActions.fitToScreen}
-                    minScale={0.5}
-                    maxScale={4}
-                />
             </div>
         </div>
     )

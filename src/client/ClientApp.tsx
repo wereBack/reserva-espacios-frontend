@@ -230,6 +230,22 @@ const ClientApp = () => {
                                         </div>
 
                                         <div className="stand-detail-meta">
+                                            {/* Zone info */}
+                                            {selectedSpace.zone_id && (() => {
+                                                const zone = activePlano.zones.find(z => z.id === selectedSpace.zone_id)
+                                                return zone ? (
+                                                    <div className="meta-item meta-item--zone">
+                                                        <span className="meta-label">Zona</span>
+                                                        <span className="meta-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span className="zone-color-dot" style={{ backgroundColor: zone.color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }}></span>
+                                                            {zone.name}
+                                                        </span>
+                                                        {zone.description && (
+                                                            <span className="meta-hint">{zone.description}</span>
+                                                        )}
+                                                    </div>
+                                                ) : null
+                                            })()}
                                             <div className="meta-item">
                                                 <span className="meta-label">Dimensiones</span>
                                                 <span className="meta-value">{selectedSpace.width} x {selectedSpace.height} m</span>
@@ -328,6 +344,27 @@ const ClientApp = () => {
                                     <span className="eyebrow">Explorar</span>
                                     <h3>Listado de stands</h3>
                                 </div>
+
+                                {/* Area Selector */}
+                                {filteredPlanos.length > 1 && (
+                                    <div className="stand-list-area-selector">
+                                        <label>Seleccionar área:</label>
+                                        <select
+                                            value={selectedPlanoIndex}
+                                            onChange={(e) => {
+                                                setSelectedPlanoIndex(Number(e.target.value))
+                                                setSelectedSpaceId(null)
+                                            }}
+                                            className="area-select"
+                                        >
+                                            {filteredPlanos.map((plano, index) => (
+                                                <option key={plano.id} value={index}>
+                                                    {plano.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 <div className="stand-list-filters">
                                     <input

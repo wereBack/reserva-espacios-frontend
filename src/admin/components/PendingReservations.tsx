@@ -239,124 +239,122 @@ const PendingReservations = () => {
         )
     }
 
+    if (reservations.length === 0) {
+        return null // No mostrar si no hay reservas pendientes
+    }
+
     return (
         <div className="pending-reservations">
             <h3>
                 Reservas Pendientes
-                {reservations.length > 0 && (
-                    <span className="pending-reservations__badge">{reservations.length}</span>
-                )}
+                <span className="pending-reservations__badge">{reservations.length}</span>
             </h3>
 
-            {reservations.length === 0 ? (
-                <p className="pending-reservations__empty">No hay reservas pendientes</p>
-            ) : (
-                <ul className="pending-reservations__list">
-                    {reservations.map((reservation) => {
-                        const isExpanded = expandedId === reservation.id
+            <ul className="pending-reservations__list">
+                {reservations.map((reservation) => {
+                    const isExpanded = expandedId === reservation.id
 
-                        const handleToggle = async () => {
-                            if (isExpanded) {
-                                setExpandedId(null)
-                                setProfileData(null)
-                            } else {
-                                setExpandedId(reservation.id)
-                                if (reservation.user_id) {
-                                    setProfileLoading(true)
-                                    try {
-                                        const profile = await fetchUserProfileById(reservation.user_id)
-                                        setProfileData(profile)
-                                    } catch (err) {
-                                        console.error('Error loading profile:', err)
-                                        setProfileData(null)
-                                    } finally {
-                                        setProfileLoading(false)
-                                    }
+                    const handleToggle = async () => {
+                        if (isExpanded) {
+                            setExpandedId(null)
+                            setProfileData(null)
+                        } else {
+                            setExpandedId(reservation.id)
+                            if (reservation.user_id) {
+                                setProfileLoading(true)
+                                try {
+                                    const profile = await fetchUserProfileById(reservation.user_id)
+                                    setProfileData(profile)
+                                } catch (err) {
+                                    console.error('Error loading profile:', err)
+                                    setProfileData(null)
+                                } finally {
+                                    setProfileLoading(false)
                                 }
                             }
                         }
+                    }
 
-                        return (
-                            <li key={reservation.id} className={`pending-reservations__item ${isExpanded ? 'pending-reservations__item--expanded' : ''}`}>
-                                <div className="pending-reservations__header" onClick={handleToggle}>
-                                    <div className="pending-reservations__info">
-                                        <span className="pending-reservations__space">
-                                            {reservation.space_name || `Stand ${reservation.space_id.slice(0, 8)}`}
+                    return (
+                        <li key={reservation.id} className={`pending-reservations__item ${isExpanded ? 'pending-reservations__item--expanded' : ''}`}>
+                            <div className="pending-reservations__header" onClick={handleToggle}>
+                                <div className="pending-reservations__info">
+                                    <span className="pending-reservations__space">
+                                        {reservation.space_name || `Stand ${reservation.space_id.slice(0, 8)}`}
+                                    </span>
+                                    {reservation.asignee && (
+                                        <span className="pending-reservations__asignee">
+                                            Solicitado por: {reservation.asignee}
                                         </span>
-                                        {reservation.asignee && (
-                                            <span className="pending-reservations__asignee">
-                                                Solicitado por: {reservation.asignee}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="pending-reservations__actions">
-                                        <button
-                                            className="pending-reservations__btn pending-reservations__btn--confirm"
-                                            onClick={(e) => { e.stopPropagation(); handleConfirm(reservation.id) }}
-                                            title="Confirmar reserva"
-                                        >
-                                            ✓
-                                        </button>
-                                        <button
-                                            className="pending-reservations__btn pending-reservations__btn--reject"
-                                            onClick={(e) => { e.stopPropagation(); handleReject(reservation.id) }}
-                                            title="Rechazar reserva"
-                                        >
-                                            ✕
-                                        </button>
-                                    </div>
+                                    )}
                                 </div>
+                                <div className="pending-reservations__actions">
+                                    <button
+                                        className="pending-reservations__btn pending-reservations__btn--confirm"
+                                        onClick={(e) => { e.stopPropagation(); handleConfirm(reservation.id) }}
+                                        title="Confirmar reserva"
+                                    >
+                                        ✓
+                                    </button>
+                                    <button
+                                        className="pending-reservations__btn pending-reservations__btn--reject"
+                                        onClick={(e) => { e.stopPropagation(); handleReject(reservation.id) }}
+                                        title="Rechazar reserva"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
 
-                                {isExpanded && (
-                                    <div className="pending-reservations__details">
-                                        {profileLoading ? (
-                                            <p className="pending-reservations__details-loading">Cargando datos...</p>
-                                        ) : profileData ? (
-                                            <>
-                                                {profileData.email && (
-                                                    <div className="pending-reservations__detail">
-                                                        <span className="pending-reservations__detail-label">📧 Email:</span>
-                                                        <a href={`mailto:${profileData.email}`}>{profileData.email}</a>
-                                                    </div>
-                                                )}
-                                                {profileData.phone && (
-                                                    <div className="pending-reservations__detail">
-                                                        <span className="pending-reservations__detail-label">📞 Tel:</span>
-                                                        <span>{profileData.phone}</span>
-                                                    </div>
-                                                )}
-                                                {profileData.linkedin && (
-                                                    <div className="pending-reservations__detail">
-                                                        <span className="pending-reservations__detail-label">💼 LinkedIn:</span>
-                                                        <a href={profileData.linkedin} target="_blank" rel="noopener noreferrer">Ver perfil</a>
-                                                    </div>
-                                                )}
-                                                {profileData.company && (
-                                                    <div className="pending-reservations__detail">
-                                                        <span className="pending-reservations__detail-label">🏢 Empresa:</span>
-                                                        <span>{profileData.company}</span>
-                                                    </div>
-                                                )}
-                                                {profileData.position && (
-                                                    <div className="pending-reservations__detail">
-                                                        <span className="pending-reservations__detail-label">👤 Cargo:</span>
-                                                        <span>{profileData.position}</span>
-                                                    </div>
-                                                )}
-                                                {!profileData.email && !profileData.linkedin && !profileData.company && (
-                                                    <p className="pending-reservations__no-profile">Sin datos de perfil</p>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <p className="pending-reservations__no-profile">Sin datos de perfil</p>
-                                        )}
-                                    </div>
-                                )}
-                            </li>
-                        )
-                    })}
-                </ul>
-            )}
+                            {isExpanded && (
+                                <div className="pending-reservations__details">
+                                    {profileLoading ? (
+                                        <p className="pending-reservations__details-loading">Cargando datos...</p>
+                                    ) : profileData ? (
+                                        <>
+                                            {profileData.email && (
+                                                <div className="pending-reservations__detail">
+                                                    <span className="pending-reservations__detail-label">📧 Email:</span>
+                                                    <a href={`mailto:${profileData.email}`}>{profileData.email}</a>
+                                                </div>
+                                            )}
+                                            {profileData.phone && (
+                                                <div className="pending-reservations__detail">
+                                                    <span className="pending-reservations__detail-label">📞 Tel:</span>
+                                                    <span>{profileData.phone}</span>
+                                                </div>
+                                            )}
+                                            {profileData.linkedin && (
+                                                <div className="pending-reservations__detail">
+                                                    <span className="pending-reservations__detail-label">💼 LinkedIn:</span>
+                                                    <a href={profileData.linkedin} target="_blank" rel="noopener noreferrer">Ver perfil</a>
+                                                </div>
+                                            )}
+                                            {profileData.company && (
+                                                <div className="pending-reservations__detail">
+                                                    <span className="pending-reservations__detail-label">🏢 Empresa:</span>
+                                                    <span>{profileData.company}</span>
+                                                </div>
+                                            )}
+                                            {profileData.position && (
+                                                <div className="pending-reservations__detail">
+                                                    <span className="pending-reservations__detail-label">👤 Cargo:</span>
+                                                    <span>{profileData.position}</span>
+                                                </div>
+                                            )}
+                                            {!profileData.email && !profileData.linkedin && !profileData.company && (
+                                                <p className="pending-reservations__no-profile">Sin datos de perfil</p>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <p className="pending-reservations__no-profile">Sin datos de perfil</p>
+                                    )}
+                                </div>
+                            )}
+                        </li>
+                    )
+                })}
+            </ul>
         </div>
     )
 }

@@ -53,18 +53,7 @@ const StandList = () => {
 
     // Get dimensions for rect shapes
     const getDimensions = (stand: Stand) => {
-        if (stand.kind === 'rect') {
-            return `${Math.round(stand.width)}×${Math.round(stand.height)} px`
-        }
-        // For polygon/free, calculate bounding box
-        if ('points' in stand && stand.points.length >= 4) {
-            const xs = stand.points.filter((_, i) => i % 2 === 0)
-            const ys = stand.points.filter((_, i) => i % 2 === 1)
-            const width = Math.max(...xs) - Math.min(...xs)
-            const height = Math.max(...ys) - Math.min(...ys)
-            return `${Math.round(width)}×${Math.round(height)} px`
-        }
-        return ''
+        return `${Math.round(stand.width)}×${Math.round(stand.height)} px`
     }
 
     // Get status color dot
@@ -131,11 +120,17 @@ const StandList = () => {
 
         try {
             if (isUUID) {
-                // Update existing stand
+                // Update existing stand with all data
                 await apiUpdateSpace(stand.id, {
                     name: finalName,
                     price: parseFloat(editValues.price) || null,
                     status: editValues.status,
+                    x: stand.x,
+                    y: stand.y,
+                    width: stand.width,
+                    height: stand.height,
+                    color: stand.color,
+                    zone_id: stand.zone_id || null,
                 })
                 showToast(`✅ Stand "${finalName}" guardado correctamente`)
             } else {
@@ -146,29 +141,18 @@ const StandList = () => {
                     return
                 }
 
-                // Build create data based on stand type
+                // Build create data for rect stand
                 const createData: Parameters<typeof apiCreateSpace>[0] = {
                     plano_id: planoId,
-                    kind: stand.kind,
-                    x: stand.kind === 'rect' ? stand.x : 0,
-                    y: stand.kind === 'rect' ? stand.y : 0,
-                    width: stand.kind === 'rect' ? stand.width : 100,
-                    height: stand.kind === 'rect' ? stand.height : 100,
+                    kind: 'rect',
+                    x: stand.x,
+                    y: stand.y,
+                    width: stand.width,
+                    height: stand.height,
                     color: stand.color,
                     name: editValues.name || 'Nuevo Stand',
                     price: parseFloat(editValues.price) || null,
-                }
-
-                // Add points for polygon/free shapes
-                if ('points' in stand) {
-                    createData.points = stand.points
-                    // Calculate bounding box for x, y, width, height
-                    const xs = stand.points.filter((_, i) => i % 2 === 0)
-                    const ys = stand.points.filter((_, i) => i % 2 === 1)
-                    createData.x = Math.min(...xs)
-                    createData.y = Math.min(...ys)
-                    createData.width = Math.max(...xs) - createData.x
-                    createData.height = Math.max(...ys) - createData.y
+                    zone_id: stand.zone_id,
                 }
 
                 const created = await apiCreateSpace(createData)

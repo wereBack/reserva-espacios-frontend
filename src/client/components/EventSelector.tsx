@@ -59,6 +59,17 @@ const EventSelector = ({ selectedEventoId, onSelectEvento }: EventSelectorProps)
                     </option>
                 ))}
             </select>
+            {selectedEventoId && (() => {
+                const selectedEvento = eventos.find(e => e.id === selectedEventoId);
+                if (selectedEvento) {
+                    return (
+                        <span className="event-selector__dates">
+                            📅 {new Date(selectedEvento.fecha_reserva_desde).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })} - {new Date(selectedEvento.fecha_reserva_hasta).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                        </span>
+                    );
+                }
+                return null;
+            })()}
         </div>
     );
 };

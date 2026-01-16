@@ -11,11 +11,13 @@ export type DrawingMode =
   | 'zone-polygon'
   | 'zone-free'
   | 'zone-paint'
+  | 'zone-select'
 
 export type BaseShape = {
   id: string
   color: string
   label?: string
+  description?: string
   price?: number
 }
 
@@ -39,10 +41,11 @@ export type FreeShape = BaseShape & {
 
 export type ReservationState = 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'BLOCKED'
 
-export type Stand = (RectShape | PolygonShape | FreeShape) & {
+export type Stand = RectShape & {
   reservationStatus?: ReservationState
+  zone_id?: string
 }
-export type Zone = RectShape | PolygonShape | FreeShape
+export type Zone = RectShape
 
 export type RectPreset = {
   id: string
@@ -69,6 +72,7 @@ type StandStore = {
   zones: Zone[]
   history: Array<{ type: 'stand' | 'zone'; id: string }>
   selectedStandId: string | null
+  selectedZoneId: string | null
   mode: DrawingMode
   color: string
   rectPresetId: string | null
@@ -87,8 +91,10 @@ type StandStore = {
   setBackgroundFile: (file: File | null) => void
   setCanvasSize: (width: number, height: number) => void
   savePlano: () => Promise<void>
+  saveBackgroundImage: () => Promise<void>
   loadPlano: (id: string) => Promise<void>
   clearNewlyCreatedPlanoId: () => void
+  isSavingImage: boolean
 
   // Drawing actions
   addStand: (stand: Stand) => void
@@ -98,6 +104,7 @@ type StandStore = {
   setMode: (mode: DrawingMode) => void
   setColor: (color: string) => void
   selectStand: (id: string | null) => void
+  selectZone: (id: string | null) => void
   removeStand: (id: string) => void
   removeZone: (id: string) => void
   replaceStandId: (oldId: string, newId: string) => void
@@ -146,33 +153,12 @@ const DEFAULT_PRESETS: RectPreset[] = [
 
 // Helper to convert frontend shape to backend format
 const shapeToApiFormat = (shape: Stand | Zone, index: number) => {
-  if (shape.kind === 'rect') {
-    return {
-      kind: 'rect',
-      x: shape.x,
-      y: shape.y,
-      width: shape.width,
-      height: shape.height,
-      color: shape.color,
-      name: shape.label || `Stand ${index + 1}`,
-      price: shape.price,
-    }
-  }
-  // For polygon/free shapes, calculate bounding box
-  const points = (shape as PolygonShape | FreeShape).points
-  const xs = points.filter((_, i) => i % 2 === 0)
-  const ys = points.filter((_, i) => i % 2 === 1)
-  const minX = Math.min(...xs)
-  const minY = Math.min(...ys)
-  const maxX = Math.max(...xs)
-  const maxY = Math.max(...ys)
-
   return {
-    kind: shape.kind,
-    x: minX,
-    y: minY,
-    width: maxX - minX,
-    height: maxY - minY,
+    kind: 'rect',
+    x: shape.x,
+    y: shape.y,
+    width: shape.width,
+    height: shape.height,
     color: shape.color,
     name: shape.label || `Stand ${index + 1}`,
     price: shape.price,
@@ -207,6 +193,7 @@ const apiToShapeFormat = (data: PlanoData['spaces'][0]): Stand => {
     label: data.name,
     price: data.price,
     reservationStatus,
+    zone_id: data.zone_id,
   }
 }
 
@@ -243,6 +230,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
   canvasWidth: 800,
   canvasHeight: 600,
   isSaving: false,
+  isSavingImage: false,
   lastSaved: null,
   newlyCreatedPlanoId: null,
 
@@ -251,6 +239,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
   zones: [],
   history: [],
   selectedStandId: null,
+  selectedZoneId: null,
   mode: 'stand-rect',
   color: '#ffb703',
   rectPresetId: 'medium',
@@ -336,6 +325,76 @@ export const useStandStore = create<StandStore>((set, get) => ({
     }
   },
 
+  saveBackgroundImage: async () => {
+    const state = get()
+
+    // Solo guardar si hay una imagen nueva y un plano existente
+    if (!state.backgroundFile) {
+      alert('No hay imagen nueva para guardar')
+      return
+    }
+
+    if (!state.planoId) {
+      alert('Primero debes guardar el área completa para poder guardar una imagen')
+      return
+    }
+
+    set({ isSavingImage: true })
+
+    try {
+      // Subir la imagen a S3
+      const uploadResult = await uploadPlanoImage(state.backgroundFile)
+      const newBackgroundUrl = uploadResult.url
+
+      // Actualizar solo la URL del plano
+      const planoData: PlanoData = {
+        name: state.planoName,
+        url: newBackgroundUrl,
+        width: state.canvasWidth,
+        height: state.canvasHeight,
+        evento_id: state.eventoId || undefined,
+        spaces: state.stands.map((stand, i) => {
+          const standData = {
+            kind: 'rect',
+            x: stand.kind === 'rect' ? stand.x : 0,
+            y: stand.kind === 'rect' ? stand.y : 0,
+            width: stand.kind === 'rect' ? stand.width : 0,
+            height: stand.kind === 'rect' ? stand.height : 0,
+            color: stand.color,
+            name: stand.label || `Stand ${i + 1}`,
+            price: stand.price,
+          }
+          return standData
+        }),
+        zones: state.zones.map((zone, i) => ({
+          kind: 'rect',
+          x: zone.kind === 'rect' ? zone.x : 0,
+          y: zone.kind === 'rect' ? zone.y : 0,
+          width: zone.kind === 'rect' ? zone.width : 0,
+          height: zone.kind === 'rect' ? zone.height : 0,
+          color: zone.color,
+          name: zone.label || `Zona ${i + 1}`,
+          id: zone.id,
+        })),
+      }
+
+      await updatePlano(state.planoId, planoData)
+
+      // Limpiar el archivo y actualizar la URL
+      set({
+        backgroundFile: null,
+        backgroundUrl: newBackgroundUrl,
+        isSavingImage: false,
+        lastSaved: new Date()
+      })
+
+      alert('Imagen guardada correctamente')
+    } catch (error) {
+      set({ isSavingImage: false })
+      alert(`Error al guardar la imagen: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+    }
+  },
+
   loadPlano: async (id: string) => {
     try {
       const plano = await fetchPlano(id)
@@ -387,6 +446,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
   setMode: (mode) => set({ mode }),
   setColor: (color) => set({ color }),
   selectStand: (id) => set({ selectedStandId: id }),
+  selectZone: (id) => set({ selectedZoneId: id }),
   removeStand: (id) =>
     set((state) => ({
       stands: state.stands.filter((stand) => stand.id !== id),
