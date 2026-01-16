@@ -44,6 +44,7 @@ export interface ZoneData {
     height: number;
     color: string;
     name: string;
+    description?: string;
     price?: number;
 }
 
@@ -198,6 +199,12 @@ export interface SpaceUpdateData {
     price?: number | null;
     active?: boolean;
     status?: 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'BLOCKED';
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    color?: string;
+    zone_id?: string | null;
 }
 
 export async function updateSpace(id: string, data: SpaceUpdateData): Promise<SpaceData> {
@@ -230,9 +237,14 @@ export async function createSpace(data: SpaceCreateData): Promise<SpaceData> {
 
 export interface ZoneUpdateData {
     name?: string;
+    description?: string;
     price?: number | null;
     color?: string;
     active?: boolean;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
 }
 
 export async function updateZone(id: string, data: ZoneUpdateData): Promise<ZoneData> {
@@ -252,6 +264,7 @@ export interface ZoneCreateData {
     height: number;
     color: string;
     name: string;
+    description?: string;
     price?: number | null;
     points?: number[];
 }

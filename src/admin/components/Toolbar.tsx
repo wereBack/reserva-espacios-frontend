@@ -9,7 +9,6 @@ const STAND_TOOLS = [
 
 const ZONE_TOOLS = [
   { id: 'zone-rect', label: 'Zona rectangular', desc: 'Área rectangular grande' },
-  { id: 'zone-paint', label: 'Pintar zona', desc: 'Cambia el color de zonas' },
 ] as const
 
 const Toolbar = () => {
@@ -29,6 +28,9 @@ const Toolbar = () => {
   const backgroundUrl = useStandStore((state) => state.backgroundUrl)
   const setBackgroundUrl = useStandStore((state) => state.setBackgroundUrl)
   const setBackgroundFile = useStandStore((state) => state.setBackgroundFile)
+  const backgroundFile = useStandStore((state) => state.backgroundFile)
+  const saveBackgroundImage = useStandStore((state) => state.saveBackgroundImage)
+  const isSavingImage = useStandStore((state) => state.isSavingImage)
   const planoId = useStandStore((state) => state.planoId)
   const planoName = useStandStore((state) => state.planoName)
 
@@ -86,13 +88,15 @@ const Toolbar = () => {
 
         <div className="toolbar-tools">
           <button
-            className={`toolbar-tool ${mode === 'select' ? 'toolbar-tool--active' : ''}`}
-            onClick={() => setMode('select')}
+            className={`toolbar-tool ${(mode === 'select' || mode === 'zone-select') ? 'toolbar-tool--active' : ''}`}
+            onClick={() => setMode(toolbarMode === 'zones' ? 'zone-select' : 'select')}
           >
             <div className="toolbar-tool__icon">↖</div>
             <div className="toolbar-tool__info">
               <span className="toolbar-tool__name">Seleccionar</span>
-              <span className="toolbar-tool__desc">Mover y editar elementos</span>
+              <span className="toolbar-tool__desc">
+                {toolbarMode === 'zones' ? 'Mover y editar zonas' : 'Mover y editar stands'}
+              </span>
             </div>
           </button>
 
@@ -141,20 +145,7 @@ const Toolbar = () => {
       )}
 
       {/* Color picker for zones */}
-      {toolbarMode === 'zones' && (
-        <div className="toolbar-section">
-          <h4 className="toolbar-section__title">Color de zona</h4>
-          <div className="toolbar-color">
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="toolbar-color__picker"
-            />
-            <span className="toolbar-color__label">{color}</span>
-          </div>
-        </div>
-      )}
+
 
       {/* Grid Controls Section */}
       <div className="toolbar-section">
@@ -211,12 +202,23 @@ const Toolbar = () => {
             {backgroundUrl ? (
               <div className="toolbar-background__preview">
                 <img src={backgroundUrl} alt="Fondo" />
-                <button
-                  className="toolbar-background__change"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Cambiar
-                </button>
+                <div className="toolbar-background__buttons">
+                  <button
+                    className="toolbar-background__change"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    Cambiar
+                  </button>
+                  {backgroundFile && (
+                    <button
+                      className="toolbar-background__save"
+                      onClick={saveBackgroundImage}
+                      disabled={isSavingImage}
+                    >
+                      {isSavingImage ? '...' : 'Guardar'}
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <button

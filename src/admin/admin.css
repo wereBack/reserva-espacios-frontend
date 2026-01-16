@@ -1962,9 +1962,6 @@
 }
 
 .toolbar-background__change {
-  position: absolute;
-  bottom: 4px;
-  right: 4px;
   padding: 4px 8px;
   background: rgba(0, 0, 0, 0.7);
   border: none;
@@ -1976,6 +1973,34 @@
 
 .toolbar-background__change:hover {
   background: rgba(0, 0, 0, 0.85);
+}
+
+.toolbar-background__buttons {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.toolbar-background__save {
+  padding: 4px 8px;
+  background: #10b981;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.toolbar-background__save:hover {
+  background: #059669;
+}
+
+.toolbar-background__save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ==================== INSPECTOR SECTIONS ==================== */
@@ -3119,4 +3144,178 @@
     opacity: 0;
     transform: translateX(-50%) translateY(-10px);
   }
+}
+
+/* ==================== SHAPE CREATION MODAL ==================== */
+.shape-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.shape-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  width: 380px;
+  max-width: 95vw;
+  animation: modalSlideIn 0.2s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.shape-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.shape-modal__header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--um-blue-dark);
+}
+
+.shape-modal__close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.shape-modal__close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.shape-modal__form {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.shape-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shape-modal__field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.shape-modal__field input[type="text"],
+.shape-modal__field input[type="number"],
+.shape-modal__field textarea {
+  padding: 10px 12px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.shape-modal__field input[type="text"]:focus,
+.shape-modal__field input[type="number"]:focus,
+.shape-modal__field textarea:focus {
+  outline: none;
+  border-color: var(--um-blue);
+  box-shadow: 0 0 0 3px rgba(0, 60, 162, 0.1);
+}
+
+.shape-modal__color-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.shape-modal__color-row input[type="color"] {
+  width: 44px;
+  height: 40px;
+  padding: 2px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.shape-modal__color-row input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+.shape-modal__field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.shape-modal__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.shape-modal__btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.shape-modal__btn--cancel {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.shape-modal__btn--cancel:hover {
+  background: #e5e7eb;
+}
+
+.shape-modal__btn--confirm {
+  background: linear-gradient(135deg, var(--um-blue) 0%, var(--um-blue-dark) 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 60, 162, 0.3);
+}
+
+.shape-modal__btn--confirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 60, 162, 0.4);
 }

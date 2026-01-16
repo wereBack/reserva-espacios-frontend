@@ -40,6 +40,7 @@ export interface ZoneData {
     height: number;
     color: string;
     name: string;
+    description?: string;
     price?: number;
 }
 
