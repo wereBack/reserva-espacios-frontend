@@ -5,8 +5,6 @@ import { toProxyUrl } from '../../utils/imageProxy'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type {
   DrawingMode,
-  FreeShape,
-  PolygonShape,
   RectPreset,
   RectShape,
   Stand,
@@ -17,8 +15,8 @@ import CanvasControls from '../../components/CanvasControls'
 import ShapeCreationModal from './ShapeCreationModal'
 
 type Subject = 'stand' | 'zone'
-type ToolAction = 'select' | 'paint' | 'rect' | 'polygon' | 'free'
-type DraftTool = Exclude<ToolAction, 'select' | 'paint'>
+type ToolAction = 'select' | 'rect'
+type DraftTool = 'rect'
 type DraftContext = { subject: Subject; tool: DraftTool } | null
 
 type StandCanvasProps = {
@@ -60,9 +58,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
   const [rectDraft, setRectDraft] = useState<RectShape | null>(null)
   const [rectStart, setRectStart] = useState<{ x: number; y: number } | null>(null)
-  const [polygonPoints, setPolygonPoints] = useState<number[]>([])
-  const [freePoints, setFreePoints] = useState<number[]>([])
-  const [isFreeDrawing, setIsFreeDrawing] = useState(false)
+
   const [draftContext, setDraftContext] = useState<DraftContext>(null)
 
   // Pending shape for modal confirmation
@@ -238,9 +234,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const resetDrafts = () => {
     setRectDraft(null)
     setRectStart(null)
-    setPolygonPoints([])
-    setFreePoints([])
-    setIsFreeDrawing(false)
+
     setDraftContext(null)
   }
 
@@ -389,38 +383,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       return
     }
 
-    if (modeMeta.tool === 'polygon') {
-      if (event.evt.detail === 2) {
-        const nextPoints = [...polygonPoints, pos.x, pos.y]
-        if (nextPoints.length >= 6) {
-          commitShape(
-            {
-              id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-              kind: 'polygon',
-              points: nextPoints,
-              color,
-            },
-            draftContext?.subject ?? modeMeta.subject,
-          )
-        }
-        return
-      }
 
-      if (!draftContext || draftContext.tool !== 'polygon') {
-        setDraftContext({ subject: modeMeta.subject, tool: 'polygon' })
-        setPolygonPoints([pos.x, pos.y])
-      } else {
-        setPolygonPoints((points) => [...points, pos.x, pos.y])
-      }
-      return
-    }
-
-    if (modeMeta.tool === 'free') {
-      setDraftContext({ subject: modeMeta.subject, tool: 'free' })
-      setIsFreeDrawing(true)
-      setFreePoints([pos.x, pos.y])
-      return
-    }
 
     if (modeMeta.tool === 'select') {
       selectStand(null)
@@ -441,10 +404,6 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       setRectDraft({ ...rectDraft, ...nextRect })
       return
     }
-
-    if (isFreeDrawing && draftContext?.tool === 'free') {
-      setFreePoints((points) => [...points, pos.x, pos.y])
-    }
   }
 
   const handleStageMouseUp = () => {
@@ -457,21 +416,6 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           },
           draftContext.subject,
         )
-      } else {
-        resetDrafts()
-      }
-    }
-
-    if (draftContext?.tool === 'free' && isFreeDrawing) {
-      setIsFreeDrawing(false)
-      if (freePoints.length >= 6) {
-        const freeShape: FreeShape = {
-          id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          kind: 'free',
-          points: freePoints,
-          color,
-        }
-        commitShape(freeShape, draftContext.subject)
       } else {
         resetDrafts()
       }
@@ -585,14 +529,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   ) => {
     event.cancelBubble = true
 
-    if (modeMeta.tool === 'paint' && modeMeta.subject === subject) {
-      if (subject === 'stand') {
-        updateStand(shape.id, { color })
-      } else {
-        updateZone(shape.id, { color })
-      }
-      return
-    }
+
 
     // Select stands or zones depending on subject
     if (subject === 'stand') {
@@ -676,20 +613,6 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           listening
         />
       )
-    } else {
-      shapeNode = (
-        <Line
-          points={shape.points}
-          stroke={stroke}
-          fill={fillColor}
-          opacity={opacity}
-          strokeWidth={strokeWidth}
-          lineCap="round"
-          lineJoin="round"
-          tension={0.3}
-          listening
-        />
-      )
     }
 
     if (isStand) {
@@ -714,11 +637,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
 
   const stageCursor = useMemo(() => {
     switch (modeMeta.tool) {
-      case 'paint':
-        return 'pointer'
       case 'rect':
-      case 'polygon':
-      case 'free':
         return 'crosshair'
       default:
         return 'default'
@@ -849,29 +768,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
               listening={false}
             />
           )}
-          {polygonPoints.length > 0 && (
-            <Line
-              points={polygonPoints}
-              stroke={color}
-              strokeWidth={2}
-              dash={[6, 4]}
-              closed={false}
-              lineCap="round"
-              lineJoin="round"
-              listening={false}
-            />
-          )}
-          {freePoints.length > 0 && (
-            <Line
-              points={freePoints}
-              stroke={color}
-              strokeWidth={3}
-              tension={0.4}
-              lineCap="round"
-              lineJoin="round"
-              listening={false}
-            />
-          )}
+
         </Layer>
       </Stage>
 
@@ -948,42 +845,15 @@ const buildRectDraft = (
 }
 
 export default StandCanvas
-const translatePoints = (points: number[], dx: number, dy: number) =>
-  points.map((value, index) => (index % 2 === 0 ? value + dx : value + dy))
-
 const LABEL_FONT_SIZE = 13
 const LABEL_MIN_WIDTH = 60
 
-const getShapeBounds = (shape: RectShape | FreeShape | PolygonShape) => {
-  if (shape.kind === 'rect') {
-    return {
-      x: shape.x,
-      y: shape.y,
-      width: shape.width,
-      height: shape.height,
-    }
-  }
-
-  if (shape.points.length < 2) {
-    return { x: shape.points[0] ?? 0, y: shape.points[1] ?? 0, width: 0, height: 0 }
-  }
-
-  const xs: number[] = []
-  const ys: number[] = []
-  for (let i = 0; i < shape.points.length; i += 2) {
-    xs.push(shape.points[i])
-    ys.push(shape.points[i + 1] ?? shape.points[i])
-  }
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minY = Math.min(...ys)
-  const maxY = Math.max(...ys)
-
+const getShapeBounds = (shape: RectShape) => {
   return {
-    x: minX,
-    y: minY,
-    width: Math.max(maxX - minX, 1),
-    height: Math.max(maxY - minY, 1),
+    x: shape.x,
+    y: shape.y,
+    width: shape.width,
+    height: shape.height,
   }
 }
 

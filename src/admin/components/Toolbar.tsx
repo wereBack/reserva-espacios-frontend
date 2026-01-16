@@ -23,8 +23,7 @@ const Toolbar = () => {
   const presets = useStandStore((state) => state.presets)
   const rectPresetId = useStandStore((state) => state.rectPresetId)
   const setRectPreset = useStandStore((state) => state.setRectPreset)
-  const color = useStandStore((state) => state.color)
-  const setColor = useStandStore((state) => state.setColor)
+
   const backgroundUrl = useStandStore((state) => state.backgroundUrl)
   const setBackgroundUrl = useStandStore((state) => state.setBackgroundUrl)
   const setBackgroundFile = useStandStore((state) => state.setBackgroundFile)
