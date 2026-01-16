@@ -24,6 +24,94 @@ type StandCanvasProps = {
 }
 
 const MIN_SHAPE_SIZE = 8
+const LABEL_FONT_SIZE = 13
+const LABEL_MIN_WIDTH = 60
+
+const getShapeBounds = (shape: RectShape) => {
+  return {
+    x: shape.x,
+    y: shape.y,
+    width: shape.width,
+    height: shape.height,
+  }
+}
+
+const renderStandLabel = (shape: Stand) => {
+  if (!shape.label) {
+    return null
+  }
+  const bounds = getShapeBounds(shape)
+  const width = Math.max(bounds.width, LABEL_MIN_WIDTH)
+  const x = bounds.x + bounds.width / 2 - width / 2
+  const y = bounds.y + bounds.height / 2 - LABEL_FONT_SIZE / 2
+
+  return (
+    <Text
+      key={`label-${shape.id}`}
+      x={x}
+      y={y}
+      width={width}
+      text={shape.label}
+      fontSize={LABEL_FONT_SIZE}
+      fontStyle="600"
+      fill="#0f172a"
+      align="center"
+      listening={false}
+      shadowColor="rgba(15, 23, 42, 0.3)"
+      shadowBlur={4}
+      shadowOffsetY={1}
+      padding={2}
+    />
+  )
+}
+
+const parseMode = (mode: DrawingMode): { subject: Subject; tool: ToolAction } => {
+  if (mode === 'select') {
+    return { subject: 'stand', tool: 'select' }
+  }
+  const [rawSubject, rawTool] = mode.split('-')
+  const subject: Subject = rawSubject === 'zone' ? 'zone' : 'stand'
+  const tool = (rawTool ?? 'rect') as ToolAction
+  return { subject, tool }
+}
+
+const buildRectDraft = (
+  start: { x: number; y: number },
+  current: { x: number; y: number },
+  color: string,
+  preset: RectPreset | null,
+): Omit<RectShape, 'id'> => {
+  if (preset) {
+    const width = preset.width
+    const height = preset.height
+    const directionX = current.x < start.x ? -1 : 1
+    const directionY = current.y < start.y ? -1 : 1
+    const x = directionX === -1 ? start.x - width : start.x
+    const y = directionY === -1 ? start.y - height : start.y
+    return {
+      kind: 'rect',
+      x,
+      y,
+      width,
+      height,
+      color,
+    }
+  }
+
+  const width = current.x - start.x
+  const height = current.y - start.y
+  const x = width < 0 ? current.x : start.x
+  const y = height < 0 ? current.y : start.y
+
+  return {
+    kind: 'rect',
+    x,
+    y,
+    width: Math.abs(width),
+    height: Math.abs(height),
+    color,
+  }
+}
 
 const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -36,25 +124,20 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const selectedStandId = useStandStore((state) => state.selectedStandId)
   const addStand = useStandStore((state) => state.addStand)
   const addZone = useStandStore((state) => state.addZone)
-  const selectStand = useStandStore((state) => state.selectStand)
-  const selectZone = useStandStore((state) => state.selectZone)
   const updateStand = useStandStore((state) => state.updateStand)
+  const selectStand = useStandStore((state) => state.selectStand)
+  const rectPresetId = useStandStore((state) => state.rectPresetId)
+  const presets = useStandStore((state) => state.presets)
+  const selectedZoneId = useStandStore((state) => state.selectedZoneId)
+  const selectZone = useStandStore((state) => state.selectZone)
   const updateZone = useStandStore((state) => state.updateZone)
-  const setCanvasSize = useStandStore((state) => state.setCanvasSize)
-  const canvasWidth = useStandStore((state) => state.canvasWidth)
-  const canvasHeight = useStandStore((state) => state.canvasHeight)
-  const getNextStandNumber = useStandStore((state) => state.getNextStandNumber)
-  const checkOverlap = useStandStore((state) => state.checkOverlap)
-  const getNextZoneNumber = useStandStore((state) => state.getNextZoneNumber)
-  const checkZoneOverlap = useStandStore((state) => state.checkZoneOverlap)
-  const showGrid = useStandStore((state) => state.showGrid)
-  const gridSize = useStandStore((state) => state.gridSize)
-  const snapPosition = useStandStore((state) => state.snapPosition)
-  const rectPreset = useStandStore((state) => {
-    if (!state.rectPresetId) return null
-    return state.presets.find((preset) => preset.id === state.rectPresetId) ?? null
-  })
 
+  const [scale, setScale] = useState(1)
+  const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 })
+  console.log('stagePosition', stagePosition)
+  const [displayWidth, setDisplayWidth] = useState(0)
+  const [displayHeight, setDisplayHeight] = useState(0)
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 })
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
   const [rectDraft, setRectDraft] = useState<RectShape | null>(null)
   const [rectStart, setRectStart] = useState<{ x: number; y: number } | null>(null)
@@ -62,169 +145,73 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const [draftContext, setDraftContext] = useState<DraftContext>(null)
 
   // Pending shape for modal confirmation
-  const [pendingShape, setPendingShape] = useState<{ shape: Stand | Zone; subject: Subject } | null>(null)
+  const [pendingShape, setPendingShape] = useState<{
+    shape: RectShape | Stand
+    subject: Subject
+  } | null>(null)
 
-  // Container size tracking for auto-fit
-  const [containerSize, setContainerSize] = useState({ width: 800, height: 600 })
-
-  // Zoom state
-  const [scale, setScale] = useState(1)
-  const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 })
-  const [isPanning, setIsPanning] = useState(false)
-  const [isSpacePressed, setIsSpacePressed] = useState(false)
-
-  const MIN_SCALE = 0.1
-  const MAX_SCALE = 5
-  const SCALE_STEP = 0.15
-
+  const rectPreset = useMemo(
+    () => presets.find((p) => p.id === rectPresetId) ?? null,
+    [presets, rectPresetId],
+  )
   const modeMeta = useMemo(() => parseMode(mode), [mode])
 
-  // Track container size
-  useEffect(() => {
-    const updateContainerSize = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect()
-        setContainerSize({ width: rect.width, height: rect.height })
-      }
-    }
-
-    updateContainerSize()
-    window.addEventListener('resize', updateContainerSize)
-
-    // Also observe container itself
-    const resizeObserver = new ResizeObserver(updateContainerSize)
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current)
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateContainerSize)
-      resizeObserver.disconnect()
-    }
-  }, [])
-
-  // Calculate fit scale
-  const fitScale = useMemo(() => {
-    if (!canvasWidth || !canvasHeight) return 1
-    const scaleX = containerSize.width / canvasWidth
-    const scaleY = containerSize.height / canvasHeight
-    return Math.min(scaleX, scaleY, 1)
-  }, [containerSize.width, containerSize.height, canvasWidth, canvasHeight])
-
-  // Auto-fit when canvas size changes
-  useEffect(() => {
-    if (canvasWidth && canvasHeight) {
-      setScale(fitScale)
-      // Center the canvas
-      const centeredX = (containerSize.width - canvasWidth * fitScale) / 2
-      const centeredY = (containerSize.height - canvasHeight * fitScale) / 2
-      setStagePosition({ x: Math.max(0, centeredX), y: Math.max(0, centeredY) })
-    }
-  }, [canvasWidth, canvasHeight, fitScale, containerSize])
-
-  // Zoom functions
-  const zoomIn = useCallback(() => {
-    setScale(prev => Math.min(MAX_SCALE, prev * (1 + SCALE_STEP)))
-  }, [])
-
-  const zoomOut = useCallback(() => {
-    setScale(prev => Math.max(MIN_SCALE, prev * (1 - SCALE_STEP)))
-  }, [])
-
+  // Reset view helper
   const resetView = useCallback(() => {
-    setScale(1)
-    setStagePosition({ x: 0, y: 0 })
-  }, [])
+    if (!containerRef.current) return
+    const { clientWidth, clientHeight } = containerRef.current
+    setDisplayWidth(clientWidth)
+    setDisplayHeight(clientHeight)
 
-  const fitToScreen = useCallback(() => {
-    setScale(fitScale)
-    const centeredX = (containerSize.width - canvasWidth * fitScale) / 2
-    const centeredY = (containerSize.height - canvasHeight * fitScale) / 2
-    setStagePosition({ x: Math.max(0, centeredX), y: Math.max(0, centeredY) })
-  }, [fitScale, containerSize, canvasWidth, canvasHeight])
-
-  // Handle wheel zoom
-  const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
-    e.evt.preventDefault()
-    const stage = stageRef.current
-    if (!stage) return
-
-    const pointer = stage.getPointerPosition()
-    if (!pointer) return
-
-    const oldScale = scale
-    const mousePointTo = {
-      x: (pointer.x - stagePosition.x) / oldScale,
-      y: (pointer.y - stagePosition.y) / oldScale,
+    if (canvasSize.width > 0 && canvasSize.height > 0) {
+      const scaleX = clientWidth / canvasSize.width
+      const scaleY = clientHeight / canvasSize.height
+      const newScale = Math.min(scaleX, scaleY) * 0.9
+      setScale(newScale)
+      setStagePosition({
+        x: (clientWidth - canvasSize.width * newScale) / 2,
+        y: (clientHeight - canvasSize.height * newScale) / 2,
+      })
+    } else {
+      setScale(1)
+      setStagePosition({ x: 0, y: 0 })
     }
+  }, [canvasSize])
 
-    const direction = e.evt.deltaY > 0 ? -1 : 1
-    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, oldScale * (1 + direction * SCALE_STEP)))
-
-    const newPos = {
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
-    }
-
-    setScale(newScale)
-    setStagePosition(newPos)
-  }, [scale, stagePosition])
-
-  // Space key for panning
+  // Load background image
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !isSpacePressed) {
-        setIsSpacePressed(true)
+    if (!backgroundSrc) return
+
+    const proxyUrl = toProxyUrl(backgroundSrc)
+    const image = new Image()
+    image.crossOrigin = 'Anonymous'
+
+    const loadImage = async () => {
+      try {
+        await new Promise((resolve, reject) => {
+          image.onload = resolve
+          image.onerror = reject
+          image.src = proxyUrl
+        })
+      } catch (error) {
+        console.error('Failed to load image via proxy, trying direct URL', error)
+        image.src = backgroundSrc
       }
     }
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
-        setIsSpacePressed(false)
-        setIsPanning(false)
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [isSpacePressed])
 
-  // Display dimensions (scaled)
-  const displayWidth = containerSize.width
-  const displayHeight = containerSize.height
-
-  useEffect(() => {
-    if (!backgroundSrc) {
-      setBackgroundImage(null)
-      return
+    image.onload = () => {
+      setBackgroundImage(image)
+      setCanvasSize({ width: image.width, height: image.height })
+      resetView()
     }
 
-    // Convertir URL de S3 a URL del proxy para evitar CORS
-    const imageUrl = toProxyUrl(backgroundSrc)
-
-    const loadImage = () => {
-      const image = new window.Image()
-      image.crossOrigin = 'anonymous'
-
-      image.onload = () => {
-        const imgWidth = image.naturalWidth || image.width
-        const imgHeight = image.naturalHeight || image.height
-
-        if (imgWidth > 0 && imgHeight > 0) {
-          setCanvasSize(imgWidth, imgHeight)
-        } else {
-          console.warn('Imagen sin dimensiones validas')
-        }
-        setBackgroundImage(image)
-      }
-
-      image.onerror = () => {
-        console.error('Error loading background image:', imageUrl)
-        setBackgroundImage(null)
-      }
-
+    if (!proxyUrl.includes('localhost')) {
+      image.src = proxyUrl
+    } else {
+      // Local development fallback
+      const imageUrl = backgroundSrc.startsWith('http')
+        ? backgroundSrc
+        : `${import.meta.env.VITE_API_URL}${backgroundSrc}`
       image.src = imageUrl
     }
 
@@ -245,132 +232,107 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         selectStand(null)
       }
     }
-
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [selectStand])
 
-  useEffect(() => {
-    resetDrafts()
-  }, [mode])
+  // Controls handlers
+  const zoomIn = () => setScale((s) => Math.min(s * 1.2, MAX_SCALE))
+  const zoomOut = () => setScale((s) => Math.max(s / 1.2, MIN_SCALE))
+  const fitToScreen = resetView
+
+  const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault()
+    const stage = stageRef.current
+    if (!stage) return
+
+    const oldScale = stage.scaleX()
+    const pointer = stage.getPointerPosition()
+    if (!pointer) return
+
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    }
+
+    const direction = e.evt.deltaY > 0 ? -1 : 1
+    const newScale =
+      direction > 0
+        ? Math.min(oldScale * 1.05, MAX_SCALE)
+        : Math.max(oldScale / 1.05, MIN_SCALE)
+
+    stage.scale({ x: newScale, y: newScale })
+
+    const newPos = {
+      x: pointer.x - mousePointTo.x * newScale,
+      y: pointer.y - mousePointTo.y * newScale,
+    }
+    stage.position(newPos)
+    setStagePosition(newPos)
+    setScale(newScale)
+  }
 
   const getPointerPosition = () => {
     const stage = stageRef.current
-    const pointer = stage?.getPointerPosition()
-    if (!pointer) return null
-    // Adjust for scale and position
-    const rawPos = {
-      x: (pointer.x - stagePosition.x) / scale,
-      y: (pointer.y - stagePosition.y) / scale,
-    }
-    // Apply snap to grid if enabled
-    return snapPosition(rawPos.x, rawPos.y)
+    if (!stage) return null
+    const transform = stage.getAbsoluteTransform().copy()
+    transform.invert()
+    const pos = stage.getPointerPosition()
+    if (!pos) return null
+    return transform.point(pos)
   }
 
-  const commitShape = (shape: Stand | Zone, subject: Subject) => {
-    if (subject === 'stand') {
-      const stand = shape as Stand
-
-      // Check for overlap with existing stands (only for rect shapes)
-      if (stand.kind === 'rect') {
-        const overlappingStand = checkOverlap({ x: stand.x, y: stand.y, width: stand.width, height: stand.height })
-        if (overlappingStand) {
-          alert(`¡No se puede crear el stand! Se superpone con "${overlappingStand.label || 'otro stand'}"`)
-          resetDrafts()
-          return
-        }
-      }
-
-      // Auto-assign label "Stand nuevo X"
-      const nextNum = getNextStandNumber()
-      let standWithLabel = { ...stand, label: `Stand nuevo ${nextNum}` }
-
-      // Check if inside a zone to inherit price
-      if (stand.kind === 'rect') {
-        const standCenterX = stand.x + stand.width / 2
-        const standCenterY = stand.y + stand.height / 2
-
-        for (const zone of zones) {
-          if (zone.kind === 'rect') {
-            const isInside =
-              standCenterX >= zone.x &&
-              standCenterX <= zone.x + zone.width &&
-              standCenterY >= zone.y &&
-              standCenterY <= zone.y + zone.height
-
-            if (isInside && zone.price != null) {
-              standWithLabel = { ...standWithLabel, price: zone.price, zone_id: zone.id }
-              break
-            }
-          }
-        }
-      }
-
-      // Show modal for stand configuration
-      setPendingShape({ shape: standWithLabel, subject: 'stand' })
-    } else {
-      const zone = shape as Zone
-
-      // Check for overlap with existing zones (only for rect shapes)
-      if (zone.kind === 'rect') {
-        const overlappingZone = checkZoneOverlap({ x: zone.x, y: zone.y, width: zone.width, height: zone.height })
-        if (overlappingZone) {
-          alert(`¡No se puede crear la zona! Se superpone con "${overlappingZone.label || 'otra zona'}"`)
-          resetDrafts()
-          return
-        }
-      }
-
-      // Auto-assign label "Zona nueva X"
-      const nextZoneNum = getNextZoneNumber()
-      const zoneWithLabel = { ...zone, label: `Zona nueva ${nextZoneNum}` }
-
-      // Show modal for zone configuration
-      setPendingShape({ shape: zoneWithLabel, subject: 'zone' })
-    }
-    resetDrafts()
+  const commitShape = (shape: RectShape | Stand, _subject: Subject) => {
+    setPendingShape({ shape, subject: _subject })
   }
 
-  // Handle modal confirmation
-  const handleModalConfirm = (data: { name: string; color: string; price?: number; description?: string }) => {
+  const handleModalConfirm = (
+    data: { name: string; color: string; price?: number; description?: string }
+  ) => {
     if (!pendingShape) return
 
     const { shape, subject } = pendingShape
+    const shapeWithMeta = {
+      ...shape,
+      label: data.name,
+      color: data.color, // Color confirmado (para zona) o heredado
+      price: data.price, // Precio confirmado heredado o nuevo
+      description: data.description, // Descripción
+    }
 
     if (subject === 'stand') {
-      const finalStand = {
-        ...shape,
-        label: data.name,
-        color: data.color,
-        price: data.price,
-      } as Stand
-      addStand(finalStand)
+      addStand(shapeWithMeta as Stand)
     } else {
-      const finalZone = {
-        ...shape,
-        label: data.name,
-        color: data.color,
-        price: data.price,
-        description: data.description,
-      } as Zone
-      addZone(finalZone)
+      addZone({ ...shapeWithMeta, kind: 'rect' } as Zone)
     }
 
     setPendingShape(null)
+    resetDrafts()
   }
 
-  // Handle modal cancel
   const handleModalCancel = () => {
     setPendingShape(null)
   }
 
-  const handleStageMouseDown = (event: KonvaEventObject<MouseEvent>) => {
+  const handleStageMouseDown = () => {
     const pos = getPointerPosition()
     if (!pos) return
 
+    // If selecting, clear selection on empty click
+    if (modeMeta.tool === 'select') {
+      const stage = stageRef.current
+      if (stage?.getPointerPosition()) {
+        const clickedShape = stage.getIntersection(stage.getPointerPosition()!)
+        if (!clickedShape) {
+          selectStand(null)
+          selectZone(null)
+        }
+      }
+      return
+    }
+
     if (modeMeta.tool === 'rect') {
       setDraftContext({ subject: modeMeta.subject, tool: 'rect' })
-      setRectStart(pos)
       setRectDraft({
         id: 'draft',
         kind: 'rect',
@@ -380,10 +342,9 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         height: 0,
         color,
       })
+      setRectStart(pos)
       return
     }
-
-
 
     if (modeMeta.tool === 'select') {
       selectStand(null)
@@ -423,80 +384,50 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   }
 
   const handleStandDragEnd = (
-    event: KonvaEventObject<DragEvent>,
-    shape: Stand,
+    e: KonvaEventObject<DragEvent>,
+    stand: Stand,
   ) => {
-    const node = event.target
-    const deltaX = node.x()
-    const deltaY = node.y()
-    node.position({ x: 0, y: 0 })
+    const newX = e.target.x()
+    const newY = e.target.y()
 
-    if (deltaX === 0 && deltaY === 0) {
-      return
-    }
+    // Check if inside any zone
+    let newZoneId = undefined;
+    let newFullPrice = stand.price; // Start with current price
 
-    // Calculate new position (rect shapes only)
-    const newX = shape.x + deltaX
-    const newY = shape.y + deltaY
+    const zone = zones.find(z => {
+      // Check if stand center is inside zone
+      const centerX = newX + stand.width / 2;
+      const centerY = newY + stand.height / 2;
+      return (
+        centerX >= z.x &&
+        centerX <= z.x + z.width &&
+        centerY >= z.y &&
+        centerY <= z.y + z.height
+      );
+    });
 
-    // Check for overlap with other stands at new position (exclude current stand)
-    const overlappingStand = checkOverlap({ x: newX, y: newY, width: shape.width, height: shape.height }, shape.id)
-    if (overlappingStand) {
-      // Don't allow the move - position is already reset by node.position({ x: 0, y: 0 })
-      alert(`¡No se puede mover el stand! Se superpone con "${overlappingStand.label || 'otro stand'}"`)
-      return
-    }
-
-    // Calculate center of stand for zone detection
-    const centerX = newX + shape.width / 2
-    const centerY = newY + shape.height / 2
-
-    // Find containing zone
-    let newZoneId: string | undefined = undefined
-    let newPrice: number | undefined = undefined
-    for (const zone of zones) {
-      if (zone.kind === 'rect') {
-        const isInside =
-          centerX >= zone.x &&
-          centerX <= zone.x + zone.width &&
-          centerY >= zone.y &&
-          centerY <= zone.y + zone.height
-
-        if (isInside) {
-          newZoneId = zone.id
-          // Inherit zone price if zone has one
-          if (zone.price != null) {
-            newPrice = zone.price
-          }
-          break
-        }
+    if (zone) {
+      newZoneId = zone.id;
+      // Inherit price from zone if available
+      if (zone.price && zone.price > 0) {
+        newFullPrice = zone.price;
       }
     }
 
-    // Update stand with new position, zone_id, and inherited price
-    const updates: Partial<Stand> = { x: newX, y: newY, zone_id: newZoneId }
-    if (newPrice !== undefined) {
-      updates.price = newPrice
-    }
-    updateStand(shape.id, updates)
+    updateStand(stand.id, {
+      x: newX,
+      y: newY,
+      zone_id: newZoneId,
+      price: newFullPrice
+    })
   }
 
   const handleZoneDragEnd = (
-    event: KonvaEventObject<DragEvent>,
-    zone: Zone,
+    e: KonvaEventObject<DragEvent>,
+    zone: Zone
   ) => {
-    const node = event.target
-    const deltaX = node.x()
-    const deltaY = node.y()
-    node.position({ x: 0, y: 0 })
-
-    if (deltaX === 0 && deltaY === 0) {
-      return
-    }
-
-    // Calculate new position
-    const newX = zone.x + deltaX
-    const newY = zone.y + deltaY
+    const newX = e.target.x()
+    const newY = e.target.y()
 
     // Update zone with new position
     updateZone(zone.id, { x: newX, y: newY })
@@ -528,7 +459,6 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     subject: Subject,
   ) => {
     event.cancelBubble = true
-
 
 
     // Select stands or zones depending on subject
@@ -574,14 +504,16 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           onDragEnd: (event: KonvaEventObject<DragEvent>) =>
             handleStandDragEnd(event, shape as Stand),
         }
-        : !isStand && canDragZone
-          ? {
-            draggable: true,
-            onDragStart: () => selectZone(shape.id),
-            onDragEnd: (event: KonvaEventObject<DragEvent>) =>
-              handleZoneDragEnd(event, shape as Zone),
-          }
-          : {}
+        : isStand
+          ? { draggable: false } // No drag if not select mode
+          : canDragZone
+            ? {
+              draggable: true,
+              onDragStart: () => selectZone(shape.id),
+              onDragEnd: (event: KonvaEventObject<DragEvent>) =>
+                handleZoneDragEnd(event, shape as Zone),
+            }
+            : {}
 
     let shapeNode: ReactNode
 
@@ -596,20 +528,6 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           opacity={opacity}
           stroke={stroke}
           strokeWidth={strokeWidth}
-          listening
-        />
-      )
-    } else if (shape.kind === 'polygon') {
-      shapeNode = (
-        <Line
-          points={shape.points}
-          closed
-          fill={fillColor}
-          opacity={opacity}
-          stroke={stroke}
-          strokeWidth={strokeWidth}
-          lineCap="round"
-          lineJoin="round"
           listening
         />
       )
@@ -667,62 +585,18 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         y={stagePosition.y}
         className="canvas-stage"
         onWheel={handleWheel}
-        onMouseDown={(e) => {
-          if (isSpacePressed) {
-            setIsPanning(true)
-          } else {
-            handleStageMouseDown(e)
-          }
-        }}
-        onMouseMove={(e) => {
-          if (isPanning) {
-            const stage = stageRef.current
-            if (stage) {
-              const pos = stage.getPointerPosition()
-              if (pos) {
-                // Get movement delta
-                const dx = e.evt.movementX
-                const dy = e.evt.movementY
-                setStagePosition(prev => ({
-                  x: prev.x + dx,
-                  y: prev.y + dy,
-                }))
-              }
-            }
-          } else {
-            handleStageMouseMove()
-          }
-        }}
-        onMouseUp={() => {
-          if (isPanning) {
-            setIsPanning(false)
-          } else {
-            handleStageMouseUp()
-          }
-        }}
-        style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : stageCursor }}
+        onMouseDown={handleStageMouseDown}
+        onMouseMove={handleStageMouseMove}
+        onMouseUp={handleStageMouseUp}
+        onContextMenu={(e) => e.evt.preventDefault()}
+        style={{ cursor: stageCursor }}
       >
-        <Layer listening={false}>
-          {backgroundImage ? (
-            <KonvaImage
-              image={backgroundImage}
-              width={canvasWidth}
-              height={canvasHeight}
-              listening={false}
-            />
-          ) : (
-            <Rect
-              x={0}
-              y={0}
-              width={canvasWidth}
-              height={canvasHeight}
-              fill="#f1f3f5"
-              listening={false}
-            />
+        <Layer>
+          {backgroundImage && (
+            <KonvaImage image={backgroundImage} listening={false} />
           )}
-
-          {/* Grid Overlay */}
-          {showGrid && (
+          {/* Grid lines */}
+          {scale >= 1 && (
             <>
               {/* Vertical lines */}
               {Array.from({ length: Math.ceil(canvasWidth / gridSize) + 1 }, (_, i) => (
@@ -796,92 +670,4 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   )
 }
 
-const parseMode = (mode: DrawingMode): { subject: Subject; tool: ToolAction } => {
-  if (mode === 'select') {
-    return { subject: 'stand', tool: 'select' }
-  }
-  const [rawSubject, rawTool] = mode.split('-')
-  const subject: Subject = rawSubject === 'zone' ? 'zone' : 'stand'
-  const tool = (rawTool ?? 'rect') as ToolAction
-  return { subject, tool }
-}
-
-const buildRectDraft = (
-  start: { x: number; y: number },
-  current: { x: number; y: number },
-  color: string,
-  preset: RectPreset | null,
-): Omit<RectShape, 'id'> => {
-  if (preset) {
-    const width = preset.width
-    const height = preset.height
-    const directionX = current.x < start.x ? -1 : 1
-    const directionY = current.y < start.y ? -1 : 1
-    const x = directionX === -1 ? start.x - width : start.x
-    const y = directionY === -1 ? start.y - height : start.y
-    return {
-      kind: 'rect',
-      x,
-      y,
-      width,
-      height,
-      color,
-    }
-  }
-
-  const width = current.x - start.x
-  const height = current.y - start.y
-  const x = width < 0 ? current.x : start.x
-  const y = height < 0 ? current.y : start.y
-
-  return {
-    kind: 'rect',
-    x,
-    y,
-    width: Math.abs(width),
-    height: Math.abs(height),
-    color,
-  }
-}
-
 export default StandCanvas
-const LABEL_FONT_SIZE = 13
-const LABEL_MIN_WIDTH = 60
-
-const getShapeBounds = (shape: RectShape) => {
-  return {
-    x: shape.x,
-    y: shape.y,
-    width: shape.width,
-    height: shape.height,
-  }
-}
-
-const renderStandLabel = (shape: Stand) => {
-  if (!shape.label) {
-    return null
-  }
-  const bounds = getShapeBounds(shape)
-  const width = Math.max(bounds.width, LABEL_MIN_WIDTH)
-  const x = bounds.x + bounds.width / 2 - width / 2
-  const y = bounds.y + bounds.height / 2 - LABEL_FONT_SIZE / 2
-
-  return (
-    <Text
-      key={`label-${shape.id}`}
-      x={x}
-      y={y}
-      width={width}
-      text={shape.label}
-      fontSize={LABEL_FONT_SIZE}
-      fontStyle="600"
-      fill="#0f172a"
-      align="center"
-      listening={false}
-      shadowColor="rgba(15, 23, 42, 0.3)"
-      shadowBlur={4}
-      shadowOffsetY={1}
-      padding={2}
-    />
-  )
-}
