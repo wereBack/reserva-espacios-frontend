@@ -106,7 +106,7 @@ const ZoneList = () => {
                     width: zone.width,
                     height: zone.height,
                 })
-                showToast(`✅ Zona "${editValues.name}" guardada correctamente`)
+                showToast(`✅ Zona "${editValues.name}" modificada correctamente`)
             } else {
                 // Create new zone
                 if (!planoId) {

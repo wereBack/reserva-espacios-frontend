@@ -132,7 +132,7 @@ const StandList = () => {
                     color: stand.color,
                     zone_id: stand.zone_id || null,
                 })
-                showToast(`✅ Stand "${finalName}" guardado correctamente`)
+                showToast(`✅ Stand "${finalName}" modificado correctamente`)
             } else {
                 // Create new stand
                 if (!planoId) {

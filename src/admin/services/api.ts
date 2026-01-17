@@ -30,7 +30,7 @@ export interface SpaceData {
     active?: boolean;
     reservations?: {
         id: string;
-        estado: 'PENDING' | 'RESERVED' | 'EXPIRED' | 'CANCELLED';
+        estado: 'PENDING' | 'RESERVED' | 'EXPIRED' | 'CANCELLED' | 'CANCELLATION_REQUESTED';
         asignee: string | null;
     }[];
 }

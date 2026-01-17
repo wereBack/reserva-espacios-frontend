@@ -39,7 +39,7 @@ export type FreeShape = BaseShape & {
   points: number[]
 }
 
-export type ReservationState = 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'BLOCKED'
+export type ReservationState = 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'BLOCKED' | 'CANCELLATION_REQUESTED'
 
 export type Stand = RectShape & {
   reservationStatus?: ReservationState
@@ -90,7 +90,7 @@ type StandStore = {
   setBackgroundUrl: (url: string) => void
   setBackgroundFile: (file: File | null) => void
   setCanvasSize: (width: number, height: number) => void
-  savePlano: () => Promise<void>
+  savePlano: (options?: { silent?: boolean }) => Promise<void>
   saveBackgroundImage: () => Promise<void>
   loadPlano: (id: string) => Promise<void>
   clearNewlyCreatedPlanoId: () => void
@@ -173,12 +173,20 @@ const apiToShapeFormat = (data: PlanoData['spaces'][0]): Stand => {
   if (data.active === false) {
     reservationStatus = 'BLOCKED'
   } else if (data.reservations && data.reservations.length > 0) {
-    // Check for active reservations
-    const activeReservation = data.reservations.find(
-      r => r.estado === 'RESERVED' || r.estado === 'PENDING'
+    // Check for cancellation requests first
+    const cancellationRequest = data.reservations.find(
+      r => r.estado === 'CANCELLATION_REQUESTED'
     )
-    if (activeReservation) {
-      reservationStatus = activeReservation.estado === 'RESERVED' ? 'RESERVED' : 'PENDING'
+    if (cancellationRequest) {
+      reservationStatus = 'CANCELLATION_REQUESTED'
+    } else {
+      // Check for active reservations
+      const activeReservation = data.reservations.find(
+        r => r.estado === 'RESERVED' || r.estado === 'PENDING'
+      )
+      if (activeReservation) {
+        reservationStatus = activeReservation.estado === 'RESERVED' ? 'RESERVED' : 'PENDING'
+      }
     }
   }
 
@@ -259,7 +267,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
   setCanvasSize: (width, height) => set({ canvasWidth: width, canvasHeight: height }),
   clearNewlyCreatedPlanoId: () => set({ newlyCreatedPlanoId: null }),
 
-  savePlano: async () => {
+  savePlano: async (options?: { silent?: boolean }) => {
     const state = get()
     set({ isSaving: true })
 
@@ -287,6 +295,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
         const containingZoneId = findContainingZone(standData, zonesWithIds)
         return {
           ...standData,
+          id: stand.id, // Include local ID for matching
           zone_id: containingZoneId,
         }
       })
@@ -310,18 +319,44 @@ export const useStandStore = create<StandStore>((set, get) => ({
         result = await createPlano(planoData)
       }
 
+      // Sync local IDs with backend UUIDs
+      // The backend returns spaces and zones in the same order we sent them
+      const updatedStands = state.stands.map((stand, index) => {
+        const backendSpace = result.spaces?.[index]
+        if (backendSpace?.id && stand.id !== backendSpace.id) {
+          return { ...stand, id: backendSpace.id }
+        }
+        return stand
+      })
+
+      const updatedZones = state.zones.map((zone, index) => {
+        const backendZone = result.zones?.[index]
+        if (backendZone?.id && zone.id !== backendZone.id) {
+          return { ...zone, id: backendZone.id }
+        }
+        return zone
+      })
+
       set({
         planoId: result.id || null,
         isSaving: false,
         lastSaved: new Date(),
+        stands: updatedStands,
+        zones: updatedZones,
         // Solo setear si es un plano nuevo
         newlyCreatedPlanoId: isNewPlano ? (result.id || null) : null
       })
 
-      alert('Plano guardado correctamente')
+      // Solo mostrar alert si no es modo silencioso
+      if (!options?.silent) {
+        alert('Plano guardado correctamente')
+      }
     } catch (error) {
       set({ isSaving: false })
-      alert(`Error al guardar: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      if (!options?.silent) {
+        alert(`Error al guardar: ${error instanceof Error ? error.message : 'Error desconocido'}`)
+      }
+      throw error // Re-throw para que el llamador pueda manejar el error
     }
   },
 
