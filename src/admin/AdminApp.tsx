@@ -6,6 +6,7 @@ import Toolbar from './components/Toolbar'
 import EventSelector from './components/EventSelector'
 import PendingReservations from './components/PendingReservations'
 import PendingCancellations from './components/PendingCancellations'
+import MeasuredSizeModal from './components/MeasuredSizeModal'
 import { useAuth } from '../auth/AuthContext'
 import { useStandStore } from './store/standStore'
 import { fetchEventos } from './services/api'
@@ -98,6 +99,9 @@ const AdminApp = () => {
                     <ZoneList />
                 </aside>
             </div>
+            
+            {/* Modals */}
+            <MeasuredSizeModal />
         </div>
     )
 }

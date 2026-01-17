@@ -12,6 +12,7 @@ export interface PlanoData {
     width: number;
     height: number;
     evento_id?: string;
+    pixels_per_meter?: number;
     spaces: SpaceData[];
     zones: ZoneData[];
 }

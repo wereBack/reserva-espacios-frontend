@@ -5,7 +5,6 @@ import { toProxyUrl } from '../../utils/imageProxy'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type {
   DrawingMode,
-  RectPreset,
   RectShape,
   Stand,
   Zone,
@@ -13,6 +12,8 @@ import type {
 import { useStandStore } from '../store/standStore'
 import CanvasControls from '../../components/CanvasControls'
 import ShapeCreationModal from './ShapeCreationModal'
+import ScaleCalibrationModal from './ScaleCalibrationModal'
+import { Circle } from 'react-konva'
 
 type Subject = 'stand' | 'zone'
 type ToolAction = 'select' | 'rect'
@@ -48,13 +49,38 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const getNextZoneNumber = useStandStore((state) => state.getNextZoneNumber)
   const checkZoneOverlap = useStandStore((state) => state.checkZoneOverlap)
   const showGrid = useStandStore((state) => state.showGrid)
-  const gridSize = useStandStore((state) => state.gridSize)
   const snapPosition = useStandStore((state) => state.snapPosition)
   const savePlano = useStandStore((state) => state.savePlano)
-  const rectPreset = useStandStore((state) => {
-    if (!state.rectPresetId) return null
-    return state.presets.find((preset) => preset.id === state.rectPresetId) ?? null
-  })
+  
+  // Subscribe to grid-related state to trigger re-renders when they change
+  const gridSize = useStandStore((state) => state.gridSize)
+  const gridUnit = useStandStore((state) => state.gridUnit)
+  const pixelsPerMeter = useStandStore((state) => state.pixelsPerMeter)
+  
+  // Compute grid size in pixels reactively
+  const gridSizePixels = useMemo(() => {
+    if (gridUnit === 'meters' && pixelsPerMeter > 0) {
+      return gridSize * pixelsPerMeter
+    }
+    return gridSize
+  }, [gridSize, gridUnit, pixelsPerMeter])
+  
+  // Size mode
+  const sizeMode = useStandStore((state) => state.sizeMode)
+  const getMeasuredSizeInPixels = useStandStore((state) => state.getMeasuredSizeInPixels)
+  
+  // Compute measured size in pixels
+  const measuredSizeInPixels = useMemo(() => {
+    if (sizeMode !== 'measured') return null
+    return getMeasuredSizeInPixels()
+  }, [sizeMode, getMeasuredSizeInPixels])
+
+  // Calibration state
+  const showCalibrationModal = useStandStore((state) => state.showCalibrationModal)
+  const setShowCalibrationModal = useStandStore((state) => state.setShowCalibrationModal)
+  const calibrationPoints = useStandStore((state) => state.calibrationPoints)
+  const addCalibrationPoint = useStandStore((state) => state.addCalibrationPoint)
+  const isCalibrating = useStandStore((state) => state.isCalibrating)
 
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
   const [rectDraft, setRectDraft] = useState<RectShape | null>(null)
@@ -389,6 +415,12 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     const pos = getPointerPosition()
     if (!pos) return
 
+    // If calibrating, add calibration point instead of drawing
+    if (isCalibrating && calibrationPoints.length < 2) {
+      addCalibrationPoint(pos)
+      return
+    }
+
     if (modeMeta.tool === 'rect') {
       setDraftContext({ subject: modeMeta.subject, tool: 'rect' })
       setRectStart(pos)
@@ -418,7 +450,7 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         rectStart,
         pos,
         color,
-        draftContext.subject === 'stand' ? rectPreset : null,
+        draftContext.subject === 'stand' ? measuredSizeInPixels : null,
       )
       setRectDraft({ ...rectDraft, ...nextRect })
     }
@@ -453,9 +485,12 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       return
     }
 
-    // Calculate new position (rect shapes only)
-    const newX = shape.x + deltaX
-    const newY = shape.y + deltaY
+    // Calculate new position with snap
+    const rawX = shape.x + deltaX
+    const rawY = shape.y + deltaY
+    const snapped = snapPosition(rawX, rawY)
+    const newX = snapped.x
+    const newY = snapped.y
 
     // Check for overlap with other stands at new position (exclude current stand)
     const overlappingStand = checkOverlap({ x: newX, y: newY, width: shape.width, height: shape.height }, shape.id)
@@ -520,9 +555,12 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       return
     }
 
-    // Calculate new position
-    const newX = zone.x + deltaX
-    const newY = zone.y + deltaY
+    // Calculate new position with snap
+    const rawX = zone.x + deltaX
+    const rawY = zone.y + deltaY
+    const snapped = snapPosition(rawX, rawY)
+    const newX = snapped.x
+    const newY = snapped.y
 
     // Update zone with new position
     updateZone(zone.id, { x: newX, y: newY })
@@ -739,10 +777,10 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           {showGrid && (
             <>
               {/* Vertical lines */}
-              {Array.from({ length: Math.ceil(canvasWidth / gridSize) + 1 }, (_, i) => (
+              {Array.from({ length: Math.ceil(canvasWidth / gridSizePixels) + 1 }, (_, i) => (
                 <Line
                   key={`v-${i}`}
-                  points={[i * gridSize, 0, i * gridSize, canvasHeight]}
+                  points={[i * gridSizePixels, 0, i * gridSizePixels, canvasHeight]}
                   stroke="#94a3b8"
                   strokeWidth={0.5}
                   opacity={0.5}
@@ -750,10 +788,10 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
                 />
               ))}
               {/* Horizontal lines */}
-              {Array.from({ length: Math.ceil(canvasHeight / gridSize) + 1 }, (_, i) => (
+              {Array.from({ length: Math.ceil(canvasHeight / gridSizePixels) + 1 }, (_, i) => (
                 <Line
                   key={`h-${i}`}
-                  points={[0, i * gridSize, canvasWidth, i * gridSize]}
+                  points={[0, i * gridSizePixels, canvasWidth, i * gridSizePixels]}
                   stroke="#94a3b8"
                   strokeWidth={0.5}
                   opacity={0.5}
@@ -782,6 +820,35 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
               listening={false}
             />
           )}
+
+          {/* Calibration point markers */}
+          {calibrationPoints.map((point, index) => (
+            <Circle
+              key={`cal-${index}`}
+              x={point.x}
+              y={point.y}
+              radius={8}
+              fill={index === 0 ? '#ef4444' : '#22c55e'}
+              stroke="white"
+              strokeWidth={2}
+              listening={false}
+            />
+          ))}
+          {/* Line between calibration points */}
+          {calibrationPoints.length === 2 && (
+            <Line
+              points={[
+                calibrationPoints[0].x,
+                calibrationPoints[0].y,
+                calibrationPoints[1].x,
+                calibrationPoints[1].y,
+              ]}
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dash={[5, 5]}
+              listening={false}
+            />
+          )}
         </Layer>
       </Stage>
 
@@ -805,6 +872,13 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         onConfirm={handleModalConfirm}
         onCancel={handleModalCancel}
       />
+
+      <ScaleCalibrationModal
+        isOpen={showCalibrationModal}
+        onClose={() => setShowCalibrationModal(false)}
+        canvasWidth={canvasWidth}
+        canvasHeight={canvasHeight}
+      />
     </div>
   )
 }
@@ -823,11 +897,12 @@ const buildRectDraft = (
   start: { x: number; y: number },
   current: { x: number; y: number },
   color: string,
-  preset: RectPreset | null,
+  measuredSize: { width: number; height: number } | null,
 ): Omit<RectShape, 'id'> => {
-  if (preset) {
-    const width = preset.width
-    const height = preset.height
+  // If measured size is provided, use fixed dimensions
+  if (measuredSize) {
+    const width = measuredSize.width
+    const height = measuredSize.height
     const directionX = current.x < start.x ? -1 : 1
     const directionY = current.y < start.y ? -1 : 1
     const x = directionX === -1 ? start.x - width : start.x
@@ -842,6 +917,7 @@ const buildRectDraft = (
     }
   }
 
+  // Free mode - user drags to define size
   const width = current.x - start.x
   const height = current.y - start.y
   const x = width < 0 ? current.x : start.x

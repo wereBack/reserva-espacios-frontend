@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { usePlanos } from './hooks/usePlanos'
 import { useReservationSocket } from './hooks/useReservationSocket'
-import { createReservation, checkProfileComplete } from './services/api'
+import { createReservation, checkProfileComplete, formatDimensions } from './services/api'
 import PlanoMap from './components/PlanoMap'
 import Legend from './components/Legend'
 import EventSelector from './components/EventSelector'
@@ -248,7 +248,7 @@ const ClientApp = () => {
                                             })()}
                                             <div className="meta-item">
                                                 <span className="meta-label">Dimensiones</span>
-                                                <span className="meta-value">{selectedSpace.width} x {selectedSpace.height} m</span>
+                                                <span className="meta-value">{formatDimensions(selectedSpace.width, selectedSpace.height, activePlano.pixels_per_meter)}</span>
                                             </div>
                                             {selectedSpaceStatus !== 'reservado' && (
                                                 <div className="meta-item">
@@ -399,7 +399,7 @@ const ClientApp = () => {
                                                 <div className="stand-list-item__info">
                                                     <span className="stand-list-item__name">{space.name}</span>
                                                     <span className="stand-list-item__size">
-                                                        {space.width} x {space.height} m
+                                                        {formatDimensions(space.width, space.height, activePlano.pixels_per_meter)}
                                                     </span>
                                                 </div>
                                                 <div className="stand-list-item__meta">

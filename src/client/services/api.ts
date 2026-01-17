@@ -11,9 +11,33 @@ export interface PlanoData {
     url: string;
     width: number;
     height: number;
+    pixels_per_meter?: number;
     evento_id?: string;
     spaces: SpaceData[];
     zones: ZoneData[];
+}
+
+/**
+ * Converts pixel dimensions to meters using the plano's scale.
+ * If no scale is set, returns null.
+ */
+export function pixelsToMeters(pixels: number, pixelsPerMeter?: number): number | null {
+    if (!pixelsPerMeter || pixelsPerMeter <= 0) return null;
+    return pixels / pixelsPerMeter;
+}
+
+/**
+ * Formats dimensions (width x height) to meters string.
+ * Returns pixels if no scale is available.
+ */
+export function formatDimensions(width: number, height: number, pixelsPerMeter?: number): string {
+    if (pixelsPerMeter && pixelsPerMeter > 0) {
+        const widthM = (width / pixelsPerMeter).toFixed(1);
+        const heightM = (height / pixelsPerMeter).toFixed(1);
+        return `${widthM} x ${heightM} m`;
+    }
+    // No scale - show in pixels
+    return `${Math.round(width)} x ${Math.round(height)} px`;
 }
 
 export interface SpaceData {

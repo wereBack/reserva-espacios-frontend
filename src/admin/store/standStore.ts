@@ -50,9 +50,12 @@ export type Zone = RectShape
 export type RectPreset = {
   id: string
   label: string
-  width: number
-  height: number
+  width: number  // Always in meters
+  height: number // Always in meters
 }
+
+export type SizeMode = 'free' | 'measured'
+export type GridUnit = 'meters' | 'pixels'
 
 type StandStore = {
   // Plano state
@@ -81,8 +84,24 @@ type StandStore = {
   // Drawing helpers
   snapToGrid: boolean
   gridSize: number
+  gridUnit: GridUnit
   showGrid: boolean
   pixelsPerMeter: number
+  planoWidthMeters: number | null
+  planoHeightMeters: number | null
+  scaleMode: 'auto' | 'manual'
+  
+  // Size mode
+  sizeMode: SizeMode
+  measuredWidth: number
+  measuredHeight: number
+  showMeasuredModal: boolean
+  customPresets: RectPreset[]
+
+  // Calibration
+  showCalibrationModal: boolean
+  calibrationPoints: Array<{ x: number; y: number }>
+  isCalibrating: boolean
 
   // Plano actions
   setPlanoName: (name: string) => void
@@ -127,9 +146,30 @@ type StandStore = {
   // Drawing helper actions
   setSnapToGrid: (enabled: boolean) => void
   setGridSize: (size: number) => void
+  setGridUnit: (unit: GridUnit) => void
   setShowGrid: (show: boolean) => void
   setPixelsPerMeter: (ppm: number) => void
+  setPlanoRealDimensions: (widthMeters: number | null, heightMeters: number | null) => void
+  setScaleMode: (mode: 'auto' | 'manual') => void
   snapPosition: (x: number, y: number) => { x: number; y: number }
+  getPresetInPixels: (preset: RectPreset) => { width: number; height: number }
+  getGridSizeInPixels: () => number
+  hasScale: () => boolean
+  
+  // Size mode actions
+  setSizeMode: (mode: SizeMode) => void
+  setMeasuredWidth: (width: number) => void
+  setMeasuredHeight: (height: number) => void
+  setShowMeasuredModal: (show: boolean) => void
+  addCustomPreset: (preset: RectPreset) => void
+  removeCustomPreset: (id: string) => void
+  getMeasuredSizeInPixels: () => { width: number; height: number }
+
+  // Calibration actions
+  setShowCalibrationModal: (show: boolean) => void
+  setCalibrationPoints: (points: Array<{ x: number; y: number }>) => void
+  addCalibrationPoint: (point: { x: number; y: number }) => void
+  setIsCalibrating: (calibrating: boolean) => void
 }
 
 // Helper to check if two rectangles overlap
@@ -145,11 +185,31 @@ const rectanglesOverlap = (
   )
 }
 
+// Default presets defined in meters - pixel sizes calculated dynamically
 const DEFAULT_PRESETS: RectPreset[] = [
-  { id: 'small', label: '2 x 2 m', width: 160, height: 160 },
-  { id: 'medium', label: '3 x 2 m', width: 240, height: 160 },
-  { id: 'large', label: '4 x 3 m', width: 320, height: 240 },
+  { id: 'small', label: '2 x 2 m', width: 2, height: 2 },
+  { id: 'medium', label: '3 x 2 m', width: 3, height: 2 },
+  { id: 'large', label: '4 x 3 m', width: 4, height: 3 },
 ]
+
+// Load custom presets from localStorage
+const loadCustomPresets = (): RectPreset[] => {
+  try {
+    const saved = localStorage.getItem('customPresets')
+    return saved ? JSON.parse(saved) : []
+  } catch {
+    return []
+  }
+}
+
+// Save custom presets to localStorage
+const saveCustomPresets = (presets: RectPreset[]) => {
+  try {
+    localStorage.setItem('customPresets', JSON.stringify(presets))
+  } catch {
+    // Ignore localStorage errors
+  }
+}
 
 // Helper to convert frontend shape to backend format
 const shapeToApiFormat = (shape: Stand | Zone, index: number) => {
@@ -255,9 +315,25 @@ export const useStandStore = create<StandStore>((set, get) => ({
 
   // Drawing helpers - initial values
   snapToGrid: false,
-  gridSize: 20,
+  gridSize: 1, // 1 meter by default when using meters
+  gridUnit: 'meters' as GridUnit,
   showGrid: false,
-  pixelsPerMeter: 80, // 80 pixels = 1 meter
+  pixelsPerMeter: 0, // 0 means no scale calibrated
+  planoWidthMeters: null,
+  planoHeightMeters: null,
+  scaleMode: 'manual' as const,
+  
+  // Size mode - initial values
+  sizeMode: 'free' as SizeMode,
+  measuredWidth: 3,
+  measuredHeight: 2,
+  showMeasuredModal: false,
+  customPresets: loadCustomPresets(),
+
+  // Calibration initial state
+  showCalibrationModal: false,
+  calibrationPoints: [],
+  isCalibrating: false,
 
   // Plano actions
   setPlanoName: (name) => set({ planoName: name }),
@@ -306,6 +382,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
         width: state.canvasWidth,
         height: state.canvasHeight,
         evento_id: state.eventoId || undefined,
+        pixels_per_meter: state.pixelsPerMeter > 0 ? state.pixelsPerMeter : undefined,
         spaces: standsWithZones,
         zones: zonesWithIds,
       }
@@ -444,6 +521,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
         backgroundUrl: plano.url,
         canvasWidth: plano.width,
         canvasHeight: plano.height,
+        pixelsPerMeter: plano.pixels_per_meter || 0,
         stands,
         zones,
         history: [],
@@ -619,15 +697,103 @@ export const useStandStore = create<StandStore>((set, get) => ({
   // Drawing helper actions
   setSnapToGrid: (enabled) => set({ snapToGrid: enabled }),
   setGridSize: (size) => set({ gridSize: size }),
+  setGridUnit: (unit) => set({ gridUnit: unit }),
   setShowGrid: (show) => set({ showGrid: show }),
   setPixelsPerMeter: (ppm) => set({ pixelsPerMeter: ppm }),
 
+  getGridSizeInPixels: () => {
+    const { gridSize, gridUnit, pixelsPerMeter } = get()
+    if (gridUnit === 'meters' && pixelsPerMeter > 0) {
+      return gridSize * pixelsPerMeter
+    }
+    return gridSize
+  },
+  
+  hasScale: () => get().pixelsPerMeter > 0,
+
   snapPosition: (x, y) => {
-    const { snapToGrid, gridSize } = get()
+    const { snapToGrid } = get()
     if (!snapToGrid) return { x, y }
+    const gridSizePixels = get().getGridSizeInPixels()
     return {
-      x: Math.round(x / gridSize) * gridSize,
-      y: Math.round(y / gridSize) * gridSize,
+      x: Math.round(x / gridSizePixels) * gridSizePixels,
+      y: Math.round(y / gridSizePixels) * gridSizePixels,
+    }
+  },
+
+  setPlanoRealDimensions: (widthMeters, heightMeters) => {
+    const state = get()
+    if (widthMeters && widthMeters > 0) {
+      // Calculate pixels per meter based on canvas width and real width
+      const ppm = state.canvasWidth / widthMeters
+      set({
+        planoWidthMeters: widthMeters,
+        planoHeightMeters: heightMeters,
+        pixelsPerMeter: ppm,
+        scaleMode: 'auto',
+      })
+    } else {
+      set({
+        planoWidthMeters: null,
+        planoHeightMeters: null,
+        scaleMode: 'manual',
+      })
+    }
+  },
+
+  setScaleMode: (mode) => set({ scaleMode: mode }),
+
+  getPresetInPixels: (preset) => {
+    const { pixelsPerMeter } = get()
+    return {
+      width: preset.width * pixelsPerMeter,
+      height: preset.height * pixelsPerMeter,
+    }
+  },
+
+  // Calibration actions
+  setShowCalibrationModal: (show) => set({ showCalibrationModal: show }),
+  setCalibrationPoints: (points) => set({ calibrationPoints: points }),
+  addCalibrationPoint: (point) => set((state) => {
+    const newPoints = [...state.calibrationPoints, point]
+    // Only keep last 2 points
+    if (newPoints.length > 2) {
+      return { calibrationPoints: newPoints.slice(-2) }
+    }
+    return { calibrationPoints: newPoints }
+  }),
+  setIsCalibrating: (calibrating) => set({ isCalibrating: calibrating }),
+  
+  // Size mode actions
+  setSizeMode: (mode) => set({ sizeMode: mode }),
+  setMeasuredWidth: (width) => set({ measuredWidth: width }),
+  setMeasuredHeight: (height) => set({ measuredHeight: height }),
+  setShowMeasuredModal: (show) => set({ showMeasuredModal: show }),
+  
+  addCustomPreset: (preset) => set((state) => {
+    const newPresets = [...state.customPresets, preset]
+    saveCustomPresets(newPresets)
+    return { customPresets: newPresets }
+  }),
+  
+  removeCustomPreset: (id) => set((state) => {
+    const newPresets = state.customPresets.filter(p => p.id !== id)
+    saveCustomPresets(newPresets)
+    return { customPresets: newPresets }
+  }),
+  
+  getMeasuredSizeInPixels: () => {
+    const { measuredWidth, measuredHeight, pixelsPerMeter } = get()
+    if (pixelsPerMeter > 0) {
+      return {
+        width: measuredWidth * pixelsPerMeter,
+        height: measuredHeight * pixelsPerMeter,
+      }
+    }
+    // If no scale, treat the values as pixels
+    return {
+      width: measuredWidth,
+      height: measuredHeight,
     }
   },
 }))
