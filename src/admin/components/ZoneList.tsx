@@ -44,18 +44,7 @@ const ZoneList = () => {
 
     // Get dimensions for rect zones
     const getDimensions = (zone: Zone) => {
-        if (zone.kind === 'rect') {
-            return `${Math.round(zone.width)}×${Math.round(zone.height)} px`
-        }
-        // For polygon/free, calculate bounding box
-        if ('points' in zone && zone.points.length >= 4) {
-            const xs = zone.points.filter((_, i) => i % 2 === 0)
-            const ys = zone.points.filter((_, i) => i % 2 === 1)
-            const width = Math.max(...xs) - Math.min(...xs)
-            const height = Math.max(...ys) - Math.min(...ys)
-            return `${Math.round(width)}×${Math.round(height)} px`
-        }
-        return ''
+        return `${Math.round(zone.width)}×${Math.round(zone.height)} px`
     }
 
     // Toggle expand/collapse
@@ -129,17 +118,7 @@ const ZoneList = () => {
                     price: editValues.price ? parseFloat(editValues.price) : null,
                 }
 
-                // Add points for polygon/free shapes
-                if ('points' in zone) {
-                    createData.points = zone.points
-                    // Calculate bounding box for x, y, width, height
-                    const xs = zone.points.filter((_, i) => i % 2 === 0)
-                    const ys = zone.points.filter((_, i) => i % 2 === 1)
-                    createData.x = Math.min(...xs)
-                    createData.y = Math.min(...ys)
-                    createData.width = Math.max(...xs) - createData.x
-                    createData.height = Math.max(...ys) - createData.y
-                }
+
 
                 const created = await apiCreateZone(createData)
                 // Replace local ID with backend UUID

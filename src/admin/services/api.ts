@@ -198,7 +198,7 @@ export interface SpaceUpdateData {
     name?: string;
     price?: number | null;
     active?: boolean;
-    status?: 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'BLOCKED';
+    status?: 'AVAILABLE' | 'PENDING' | 'RESERVED' | 'BLOCKED' | 'CANCELLATION_REQUESTED';
     x?: number;
     y?: number;
     width?: number;

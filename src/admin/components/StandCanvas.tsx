@@ -858,8 +858,6 @@ const buildRectDraft = (
 }
 
 export default StandCanvas
-const translatePoints = (points: number[], dx: number, dy: number) =>
-  points.map((value, index) => (index % 2 === 0 ? value + dx : value + dy))
 
 const LABEL_FONT_SIZE = 13
 const LABEL_MIN_WIDTH = 60

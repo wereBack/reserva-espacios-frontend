@@ -363,7 +363,7 @@ const EventSelector = () => {
                                                     </button>
                                                 </div>
                                                 <button
-                                                    onClick={savePlano}
+                                                    onClick={() => savePlano()}
                                                     disabled={isSaving}
                                                     className="area-chip__save-btn"
                                                     title="Guardar nueva área"
