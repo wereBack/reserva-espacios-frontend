@@ -121,20 +121,32 @@ const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
 
                     {/* Zones layer */}
                     <Layer listening={false}>
-                        {plano.zones.map((zone: ZoneData) => (
-                            <Rect
-                                key={zone.id}
-                                x={zone.x * stageDimensions.scale}
-                                y={zone.y * stageDimensions.scale}
-                                width={zone.width * stageDimensions.scale}
-                                height={zone.height * stageDimensions.scale}
-                                fill={zone.color}
-                                opacity={0.3}
-                                stroke={zone.color}
-                                strokeWidth={2}
-                                listening={false}
-                            />
-                        ))}
+                        {plano.zones.map((zone: ZoneData) => {
+                            const rotation = zone.rotation || 0
+                            const centerX = (zone.x + zone.width / 2) * stageDimensions.scale
+                            const centerY = (zone.y + zone.height / 2) * stageDimensions.scale
+
+                            return (
+                                <Group
+                                    key={zone.id}
+                                    x={centerX}
+                                    y={centerY}
+                                    rotation={rotation}
+                                >
+                                    <Rect
+                                        x={(-zone.width / 2) * stageDimensions.scale}
+                                        y={(-zone.height / 2) * stageDimensions.scale}
+                                        width={zone.width * stageDimensions.scale}
+                                        height={zone.height * stageDimensions.scale}
+                                        fill={zone.color}
+                                        opacity={0.3}
+                                        stroke={zone.color}
+                                        strokeWidth={2}
+                                        listening={false}
+                                    />
+                                </Group>
+                            )
+                        })}
                     </Layer>
 
                     {/* Spaces (stands) layer */}
@@ -143,16 +155,23 @@ const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
                             const status = getSpaceStatus(space)
                             const meta = STATUS_COLORS[status] || STATUS_COLORS.disponible
                             const isSelected = selectedSpaceId === space.id
+                            const rotation = space.rotation || 0
+
+                            const centerX = (space.x + space.width / 2) * stageDimensions.scale
+                            const centerY = (space.y + space.height / 2) * stageDimensions.scale
 
                             return (
                                 <Group
                                     key={space.id}
+                                    x={centerX}
+                                    y={centerY}
+                                    rotation={rotation}
                                     onClick={(event) => handleSelect(event, space)}
                                     onTap={(event) => handleSelect(event, space)}
                                 >
                                     <Rect
-                                        x={space.x * stageDimensions.scale}
-                                        y={space.y * stageDimensions.scale}
+                                        x={(-space.width / 2) * stageDimensions.scale}
+                                        y={(-space.height / 2) * stageDimensions.scale}
                                         width={space.width * stageDimensions.scale}
                                         height={space.height * stageDimensions.scale}
                                         cornerRadius={6}
@@ -161,18 +180,16 @@ const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
                                         strokeWidth={isSelected ? 3 : 2}
                                     />
                                     <Text
-                                        x={space.x * stageDimensions.scale}
-                                        y={
-                                            space.y * stageDimensions.scale +
-                                            (space.height * stageDimensions.scale) / 2 -
-                                            9
-                                        }
+                                        x={(-space.width / 2) * stageDimensions.scale}
+                                        y={-9} // Centered vertically (approx)
                                         width={space.width * stageDimensions.scale}
                                         text={space.name}
                                         fontSize={14}
                                         fontStyle="600"
                                         fill="#0f172a"
                                         align="center"
+                                        verticalAlign="middle"
+                                        height={space.height * stageDimensions.scale}
                                     />
                                 </Group>
                             )

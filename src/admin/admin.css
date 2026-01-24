@@ -3916,6 +3916,59 @@
   font-weight: 600;
 }
 
+/* Grid offset controls */
+.toolbar-grid-offset {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.toolbar-grid-offset__label {
+  font-size: 0.75rem;
+  color: #64748b;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.toolbar-grid-offset__controls {
+  display: flex;
+  gap: 1rem;
+}
+
+.toolbar-grid-offset__row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.toolbar-grid-offset__row span {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  min-width: 16px;
+}
+
+.toolbar-grid-offset__row button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar-grid-offset__row button:hover {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
 /* ==================== MEASURED SIZE MODAL ==================== */
 .measured-modal-overlay {
   position: fixed;
@@ -3927,16 +3980,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
+  padding: 1rem;
+  box-sizing: border-box;
 }
 
 .measured-modal {
   background: white;
   border-radius: 16px;
   padding: 0;
-  width: calc(100% - 2rem);
+  width: 100%;
   max-width: 420px;
-  margin: 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: modalSlideIn 0.2s ease-out;
 }
@@ -4067,7 +4123,8 @@
 }
 
 .measured-modal__field {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 100px;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;

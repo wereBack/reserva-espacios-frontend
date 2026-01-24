@@ -48,6 +48,7 @@ export interface SpaceData {
     width: number;
     height: number;
     color: string;
+    rotation?: number;
     name: string;
     active: boolean;
     price?: number;
@@ -63,6 +64,7 @@ export interface ZoneData {
     width: number;
     height: number;
     color: string;
+    rotation?: number;
     name: string;
     description?: string;
     price?: number;

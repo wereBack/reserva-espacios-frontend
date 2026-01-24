@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useStandStore } from '../store/standStore'
 
 const MeasuredSizeModal = () => {
@@ -36,18 +37,18 @@ const MeasuredSizeModal = () => {
         e.preventDefault()
         const w = parseFloat(width)
         const h = parseFloat(height)
-        
+
         if (w > 0 && h > 0) {
             setMeasuredWidth(w)
             setMeasuredHeight(h)
-            
+
             // Save as preset if requested
             if (saveAsPreset && presetName.trim()) {
                 const id = `custom-${Date.now()}`
                 const label = presetName.trim() || `${w} x ${h} ${unit}`
                 addCustomPreset({ id, label, width: w, height: h })
             }
-            
+
             setShowMeasuredModal(false)
         }
     }
@@ -65,13 +66,14 @@ const MeasuredSizeModal = () => {
 
     if (!isOpen) return null
 
-    return (
+    // Use portal to render outside of any container with overflow issues
+    return createPortal(
         <div className="measured-modal-overlay" onKeyDown={handleKeyDown}>
             <div className="measured-modal">
                 <div className="measured-modal__header">
                     <h3>📐 Dimensiones del Stand</h3>
-                    <button 
-                        className="measured-modal__close" 
+                    <button
+                        className="measured-modal__close"
                         onClick={() => setShowMeasuredModal(false)}
                     >
                         ×
@@ -80,7 +82,7 @@ const MeasuredSizeModal = () => {
 
                 <form onSubmit={handleSubmit} className="measured-modal__form">
                     <p className="measured-modal__help">
-                        {hasScale() 
+                        {hasScale()
                             ? 'Ingresa las dimensiones en metros. La escala ya está calibrada.'
                             : 'Ingresa las dimensiones en píxeles. Calibra la escala para usar metros.'
                         }
@@ -95,11 +97,10 @@ const MeasuredSizeModal = () => {
                                     <div key={preset.id} className="measured-modal__preset-item">
                                         <button
                                             type="button"
-                                            className={`measured-modal__preset-btn ${
-                                                width === preset.width.toString() && height === preset.height.toString() 
-                                                    ? 'measured-modal__preset-btn--active' 
+                                            className={`measured-modal__preset-btn ${width === preset.width.toString() && height === preset.height.toString()
+                                                    ? 'measured-modal__preset-btn--active'
                                                     : ''
-                                            }`}
+                                                }`}
                                             onClick={() => handlePresetSelect(preset)}
                                         >
                                             {preset.label}
@@ -117,7 +118,7 @@ const MeasuredSizeModal = () => {
                             </div>
                         </div>
                     )}
-                    
+
                     <div className="measured-modal__dimensions">
                         <div className="measured-modal__field">
                             <label>Ancho ({unitLabel})</label>
@@ -144,7 +145,7 @@ const MeasuredSizeModal = () => {
                             />
                         </div>
                     </div>
-                    
+
                     <div className="measured-modal__preview">
                         Tamaño: <strong>{width || '0'} × {height || '0'} {unit}</strong>
                     </div>
@@ -159,7 +160,7 @@ const MeasuredSizeModal = () => {
                             />
                             <span>Guardar como tamaño predefinido</span>
                         </label>
-                        
+
                         {saveAsPreset && (
                             <div className="measured-modal__preset-name">
                                 <input
@@ -173,15 +174,15 @@ const MeasuredSizeModal = () => {
                     </div>
 
                     <div className="measured-modal__actions">
-                        <button 
-                            type="button" 
-                            className="measured-modal__btn measured-modal__btn--cancel" 
+                        <button
+                            type="button"
+                            className="measured-modal__btn measured-modal__btn--cancel"
                             onClick={() => setShowMeasuredModal(false)}
                         >
                             Cancelar
                         </button>
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             className="measured-modal__btn measured-modal__btn--confirm"
                             disabled={!width || !height || parseFloat(width) <= 0 || parseFloat(height) <= 0}
                         >
@@ -190,8 +191,10 @@ const MeasuredSizeModal = () => {
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     )
 }
 
 export default MeasuredSizeModal
+

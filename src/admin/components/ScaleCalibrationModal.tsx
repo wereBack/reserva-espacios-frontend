@@ -31,6 +31,7 @@ const ScaleCalibrationModal = ({
 
     const setPixelsPerMeter = useStandStore((state) => state.setPixelsPerMeter)
     const setPlanoRealDimensions = useStandStore((state) => state.setPlanoRealDimensions)
+    const savePlano = useStandStore((state) => state.savePlano)
     const setCalibrationPoints = useStandStore((state) => state.setCalibrationPoints)
     const calibrationPoints = useStandStore((state) => state.calibrationPoints)
     const setIsCalibrating = useStandStore((state) => state.setIsCalibrating)
@@ -76,12 +77,29 @@ const ScaleCalibrationModal = ({
         setIsCalibrating(true)
     }
 
+    // Helper to show toast notification
+    const showToast = (message: string) => {
+        const toast = document.createElement('div')
+        toast.className = 'toast-notification toast-notification--success'
+        toast.textContent = message
+        document.body.appendChild(toast)
+
+        setTimeout(() => {
+            toast.classList.add('toast-notification--fade-out')
+            setTimeout(() => toast.remove(), 300)
+        }, 2500)
+    }
+
     const handleApplyDistance = () => {
         const meters = parseFloat(distanceMeters)
         if (meters > 0 && pixelDistance > 0) {
             const ppm = pixelDistance / meters
             setPixelsPerMeter(ppm)
             setCalibrationPoints([])
+            // Guardar plano para persistir la escala
+            savePlano({ silent: true })
+            // Mostrar toast de éxito
+            showToast(`✅ Escala calibrada: 1m = ${Math.round(ppm)}px`)
             onClose()
         }
     }
@@ -91,6 +109,11 @@ const ScaleCalibrationModal = ({
         const h = parseFloat(heightMeters)
         if (w > 0) {
             setPlanoRealDimensions(w, h > 0 ? h : null)
+            // Guardar plano para persistir la escala
+            savePlano({ silent: true })
+            // Mostrar toast de éxito
+            const ppm = useStandStore.getState().pixelsPerMeter
+            showToast(`✅ Escala calibrada: 1m = ${Math.round(ppm)}px`)
             onClose()
         }
     }

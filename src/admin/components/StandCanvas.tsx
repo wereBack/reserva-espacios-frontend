@@ -56,6 +56,8 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   // Subscribe to grid-related state to trigger re-renders when they change
   const gridSize = useStandStore((state) => state.gridSize)
   const gridUnit = useStandStore((state) => state.gridUnit)
+  const gridOffsetX = useStandStore((state) => state.gridOffsetX)
+  const gridOffsetY = useStandStore((state) => state.gridOffsetY)
   const pixelsPerMeter = useStandStore((state) => state.pixelsPerMeter)
 
   // Compute grid size in pixels reactively
@@ -486,15 +488,23 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     shape: Stand,
   ) => {
     const node = event.target
-    const deltaX = node.x()
-    const deltaY = node.y()
-    node.position({ x: 0, y: 0 })
+    // The node position is now absolute (centerX, centerY after drag)
+    const newCenterX = node.x()
+    const newCenterY = node.y()
+
+    // Calculate the original center
+    const originalCenterX = shape.x + shape.width / 2
+    const originalCenterY = shape.y + shape.height / 2
+
+    // Calculate delta from original center
+    const deltaX = newCenterX - originalCenterX
+    const deltaY = newCenterY - originalCenterY
 
     if (deltaX === 0 && deltaY === 0) {
       return
     }
 
-    // Calculate new position with snap
+    // Calculate new top-left position with snap
     const rawX = shape.x + deltaX
     const rawY = shape.y + deltaY
     const snapped = snapPosition(rawX, rawY)
@@ -644,6 +654,11 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     const opacity = subject === 'zone' ? 0.45 : 1
     const isStand = subject === 'stand'
     const fillColor = isStand ? getStandFillColor(shape as Stand) : shape.color
+    const rotation = shape.rotation || 0
+
+    // Calculate center for rotation pivot
+    const centerX = shape.x + shape.width / 2
+    const centerY = shape.y + shape.height / 2
 
     const dragProps =
       isStand && canDragStand
@@ -662,11 +677,11 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           }
           : {}
 
-    // Only render rect shapes
+    // Rect positioned at origin (offset will handle position)
     const shapeNode = (
       <Rect
-        x={shape.x}
-        y={shape.y}
+        x={-shape.width / 2}
+        y={-shape.height / 2}
         width={shape.width}
         height={shape.height}
         fill={fillColor}
@@ -677,22 +692,123 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
       />
     )
 
+    // Rotation handle - circle at top center of stand
+    const rotationHandle = isSelected && canDragStand ? (
+      <Circle
+        x={0}
+        y={-shape.height / 2 - 25}
+        radius={10}
+        fill="#3b82f6"
+        stroke="white"
+        strokeWidth={2}
+        draggable
+        onClick={(e) => {
+          e.cancelBubble = true
+        }}
+        onMouseDown={(e) => {
+          e.cancelBubble = true
+        }}
+        onDragStart={(e) => {
+          e.cancelBubble = true
+        }}
+        onDragMove={(e) => {
+          e.cancelBubble = true
+          const stage = e.target.getStage()
+          if (!stage) return
+
+          // Get pointer position relative to the stage
+          const pointer = stage.getPointerPosition()
+          if (!pointer) return
+
+          // Calculate center of shape in stage coordinates
+          const centerX = shape.x + shape.width / 2
+          const centerY = shape.y + shape.height / 2
+
+          // Get mouse position relative to center, accounting for scale and stage position
+          const dx = (pointer.x - stagePosition.x) / scale - centerX
+          const dy = (pointer.y - stagePosition.y) / scale - centerY
+
+          // Calculate angle (0 = up, clockwise positive)
+          const angle = Math.atan2(dx, -dy) * (180 / Math.PI)
+
+          updateStand(shape.id, { rotation: angle })
+
+          // Keep handle at fixed position relative to rotated group (it will rotate with parent)
+          e.target.position({ x: 0, y: -shape.height / 2 - 25 })
+        }}
+        onDragEnd={async (e) => {
+          e.cancelBubble = true
+          try {
+            await savePlano({ silent: true })
+            showToast(`✅ Stand "${(shape as Stand).label || 'Stand'}" rotado`)
+          } catch (error) {
+            console.error('Error saving rotation:', error)
+          }
+        }}
+        cursor="grab"
+      />
+    ) : null
+
+    // Line connecting handle to rect (only when selected)
+    const rotationLine = isSelected && canDragStand ? (
+      <Line
+        points={[0, -shape.height / 2, 0, -shape.height / 2 - 15]}
+        stroke="#3b82f6"
+        strokeWidth={2}
+        listening={false}
+      />
+    ) : null
+
     if (isStand) {
       return (
         <Group
           key={`stand-${shape.id}`}
+          x={centerX}
+          y={centerY}
+          rotation={rotation}
           onClick={(event) => handleShapeClick(event, shape, subject)}
           {...dragProps}
         >
           {shapeNode}
-          {shape.label ? renderStandLabel(shape as Stand) : null}
+          {shape.label ? (
+            <Text
+              x={-shape.width / 2}
+              y={-LABEL_FONT_SIZE / 2}
+              width={shape.width}
+              text={shape.label}
+              fontSize={LABEL_FONT_SIZE}
+              fontStyle="600"
+              fill="#0f172a"
+              align="center"
+              listening={false}
+            />
+          ) : null}
+          {rotationLine}
+          {rotationHandle}
         </Group>
       )
     }
 
     return (
-      <Group key={`zone-${shape.id}`} onClick={(event) => handleShapeClick(event, shape, subject)} {...dragProps}>
-        {shapeNode}
+      <Group
+        key={`zone-${shape.id}`}
+        x={centerX}
+        y={centerY}
+        rotation={rotation}
+        onClick={(event) => handleShapeClick(event, shape, subject)}
+        {...dragProps}
+      >
+        <Rect
+          x={-shape.width / 2}
+          y={-shape.height / 2}
+          width={shape.width}
+          height={shape.height}
+          fill={shape.color}
+          opacity={opacity}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          listening
+        />
       </Group>
     )
   }
@@ -793,28 +909,34 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           {/* Grid Overlay */}
           {showGrid && (
             <>
-              {/* Vertical lines */}
-              {Array.from({ length: Math.ceil(canvasWidth / gridSizePixels) + 1 }, (_, i) => (
-                <Line
-                  key={`v-${i}`}
-                  points={[i * gridSizePixels, 0, i * gridSizePixels, canvasHeight]}
-                  stroke="#94a3b8"
-                  strokeWidth={0.5}
-                  opacity={0.5}
-                  listening={false}
-                />
-              ))}
-              {/* Horizontal lines */}
-              {Array.from({ length: Math.ceil(canvasHeight / gridSizePixels) + 1 }, (_, i) => (
-                <Line
-                  key={`h-${i}`}
-                  points={[0, i * gridSizePixels, canvasWidth, i * gridSizePixels]}
-                  stroke="#94a3b8"
-                  strokeWidth={0.5}
-                  opacity={0.5}
-                  listening={false}
-                />
-              ))}
+              {/* Vertical lines - with offset */}
+              {Array.from({ length: Math.ceil((canvasWidth + gridSizePixels) / gridSizePixels) + 1 }, (_, i) => {
+                const x = (i * gridSizePixels) + (gridOffsetX % gridSizePixels)
+                return (
+                  <Line
+                    key={`v-${i}`}
+                    points={[x, 0, x, canvasHeight]}
+                    stroke="#94a3b8"
+                    strokeWidth={0.5}
+                    opacity={0.5}
+                    listening={false}
+                  />
+                )
+              })}
+              {/* Horizontal lines - with offset */}
+              {Array.from({ length: Math.ceil((canvasHeight + gridSizePixels) / gridSizePixels) + 1 }, (_, i) => {
+                const y = (i * gridSizePixels) + (gridOffsetY % gridSizePixels)
+                return (
+                  <Line
+                    key={`h-${i}`}
+                    points={[0, y, canvasWidth, y]}
+                    stroke="#94a3b8"
+                    strokeWidth={0.5}
+                    opacity={0.5}
+                    listening={false}
+                  />
+                )
+              })}
             </>
           )}
         </Layer>
@@ -956,42 +1078,4 @@ const buildRectDraft = (
 export default StandCanvas
 
 const LABEL_FONT_SIZE = 13
-const LABEL_MIN_WIDTH = 60
 
-const getShapeBounds = (shape: RectShape | Stand) => {
-  return {
-    x: shape.x,
-    y: shape.y,
-    width: shape.width,
-    height: shape.height,
-  }
-}
-
-const renderStandLabel = (shape: Stand) => {
-  if (!shape.label) {
-    return null
-  }
-  const bounds = getShapeBounds(shape)
-  const width = Math.max(bounds.width, LABEL_MIN_WIDTH)
-  const x = bounds.x + bounds.width / 2 - width / 2
-  const y = bounds.y + bounds.height / 2 - LABEL_FONT_SIZE / 2
-
-  return (
-    <Text
-      key={`label-${shape.id}`}
-      x={x}
-      y={y}
-      width={width}
-      text={shape.label}
-      fontSize={LABEL_FONT_SIZE}
-      fontStyle="600"
-      fill="#0f172a"
-      align="center"
-      listening={false}
-      shadowColor="rgba(15, 23, 42, 0.3)"
-      shadowBlur={4}
-      shadowOffsetY={1}
-      padding={2}
-    />
-  )
-}

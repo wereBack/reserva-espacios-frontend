@@ -27,6 +27,7 @@ export type RectShape = BaseShape & {
   y: number
   width: number
   height: number
+  rotation?: number  // Rotación en grados (0-360)
 }
 
 export type PolygonShape = BaseShape & {
@@ -86,6 +87,8 @@ type StandStore = {
   gridSize: number
   gridUnit: GridUnit
   showGrid: boolean
+  gridOffsetX: number
+  gridOffsetY: number
   pixelsPerMeter: number
   planoWidthMeters: number | null
   planoHeightMeters: number | null
@@ -148,6 +151,7 @@ type StandStore = {
   setGridSize: (size: number) => void
   setGridUnit: (unit: GridUnit) => void
   setShowGrid: (show: boolean) => void
+  setGridOffset: (x: number, y: number) => void
   setPixelsPerMeter: (ppm: number) => void
   setPlanoRealDimensions: (widthMeters: number | null, heightMeters: number | null) => void
   setScaleMode: (mode: 'auto' | 'manual') => void
@@ -172,18 +176,72 @@ type StandStore = {
   setIsCalibrating: (calibrating: boolean) => void
 }
 
-// Helper to check if two rectangles overlap
+// Helper to calculate the axis-aligned bounding box of a rotated rectangle
+const getRotatedBoundingBox = (
+  rect: { x: number; y: number; width: number; height: number; rotation?: number }
+): { x: number; y: number; width: number; height: number } => {
+  const rotation = rect.rotation || 0
+  if (rotation === 0) {
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  }
+
+  // Calculate center of rectangle
+  const cx = rect.x + rect.width / 2
+  const cy = rect.y + rect.height / 2
+
+  // Get corners relative to center
+  const halfW = rect.width / 2
+  const halfH = rect.height / 2
+  const corners = [
+    { x: -halfW, y: -halfH },
+    { x: halfW, y: -halfH },
+    { x: halfW, y: halfH },
+    { x: -halfW, y: halfH }
+  ]
+
+  // Rotate corners
+  const rad = (rotation * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+
+  const rotatedCorners = corners.map(c => ({
+    x: cx + c.x * cos - c.y * sin,
+    y: cy + c.x * sin + c.y * cos
+  }))
+
+  // Find min/max to get AABB
+  const xs = rotatedCorners.map(c => c.x)
+  const ys = rotatedCorners.map(c => c.y)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY
+  }
+}
+
+// Helper to check if two rectangles overlap (considering rotation)
 const rectanglesOverlap = (
-  a: { x: number; y: number; width: number; height: number },
-  b: { x: number; y: number; width: number; height: number }
+  a: { x: number; y: number; width: number; height: number; rotation?: number },
+  b: { x: number; y: number; width: number; height: number; rotation?: number }
 ): boolean => {
+  // Get axis-aligned bounding boxes for both rectangles
+  const boxA = getRotatedBoundingBox(a)
+  const boxB = getRotatedBoundingBox(b)
+
   return !(
-    a.x + a.width <= b.x ||
-    b.x + b.width <= a.x ||
-    a.y + a.height <= b.y ||
-    b.y + b.height <= a.y
+    boxA.x + boxA.width <= boxB.x ||
+    boxB.x + boxB.width <= boxA.x ||
+    boxA.y + boxA.height <= boxB.y ||
+    boxB.y + boxB.height <= boxA.y
   )
 }
+
 
 // Default presets defined in meters - pixel sizes calculated dynamically
 const DEFAULT_PRESETS: RectPreset[] = [
@@ -228,6 +286,7 @@ const shapeToApiFormat = (shape: Stand | Zone, index: number) => {
     width: shape.width,
     height: shape.height,
     color: shape.color,
+    rotation: shape.rotation || 0,
     name: shape.label || `Stand ${index + 1}`,
     price: shape.price,
   }
@@ -266,6 +325,7 @@ const apiToShapeFormat = (data: PlanoData['spaces'][0]): Stand => {
     width: data.width,
     height: data.height,
     color: data.color,
+    rotation: data.rotation || 0,
     label: data.name,
     price: data.price,
     reservationStatus,
@@ -326,6 +386,8 @@ export const useStandStore = create<StandStore>((set, get) => ({
   gridSize: 1, // 1 meter by default when using meters
   gridUnit: 'meters' as GridUnit,
   showGrid: false,
+  gridOffsetX: 0,
+  gridOffsetY: 0,
   pixelsPerMeter: 0, // 0 means no scale calibrated
   planoWidthMeters: null,
   planoHeightMeters: null,
@@ -707,6 +769,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
   setGridSize: (size) => set({ gridSize: size }),
   setGridUnit: (unit) => set({ gridUnit: unit }),
   setShowGrid: (show) => set({ showGrid: show }),
+  setGridOffset: (x, y) => set({ gridOffsetX: x, gridOffsetY: y }),
   setPixelsPerMeter: (ppm) => set({ pixelsPerMeter: ppm }),
 
   getGridSizeInPixels: () => {
