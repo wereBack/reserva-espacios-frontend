@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type KeyboardEvent } from 'react';
 import { fetchEventos, createEvento, fetchPlanosByEvento, deletePlano, deleteEvento, updateEvento, type EventoData, type PlanoData } from '../services/api';
 import { useStandStore } from '../store/standStore';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 const EventSelector = () => {
     const {
@@ -9,6 +10,9 @@ const EventSelector = () => {
         planoName, setPlanoName,
         savePlano, isSaving
     } = useStandStore();
+
+    // Detectar móvil - en móvil no se puede crear/eliminar, solo seleccionar
+    const isMobile = useIsMobile(768);
 
     const [eventos, setEventos] = useState<EventoData[]>([]);
     const [planos, setPlanos] = useState<PlanoData[]>([]);
@@ -239,29 +243,34 @@ const EventSelector = () => {
                                     </option>
                                 ))}
                             </select>
-                            <button
-                                className="header-selector__add-btn"
-                                onClick={() => setIsCreating(true)}
-                                title="Crear evento"
-                            >
-                                +
-                            </button>
-                            {eventoId && (
+                            {/* Botones solo visibles en desktop */}
+                            {!isMobile && (
                                 <>
                                     <button
-                                        className={`header-selector__visibility-btn ${selectedEvento?.visible ? 'header-selector__visibility-btn--visible' : 'header-selector__visibility-btn--hidden'}`}
-                                        onClick={handleToggleVisibility}
-                                        title={selectedEvento?.visible ? 'Ocultar evento para clientes' : 'Mostrar evento a clientes'}
+                                        className="header-selector__add-btn"
+                                        onClick={() => setIsCreating(true)}
+                                        title="Crear evento"
                                     >
-                                        {selectedEvento?.visible ? '👁' : '👁‍🗨'}
+                                        +
                                     </button>
-                                    <button
-                                        className="header-selector__delete-btn"
-                                        onClick={handleDeleteEvento}
-                                        title="Eliminar evento"
-                                    >
-                                        🗑
-                                    </button>
+                                    {eventoId && (
+                                        <>
+                                            <button
+                                                className={`header-selector__visibility-btn ${selectedEvento?.visible ? 'header-selector__visibility-btn--visible' : 'header-selector__visibility-btn--hidden'}`}
+                                                onClick={handleToggleVisibility}
+                                                title={selectedEvento?.visible ? 'Ocultar evento para clientes' : 'Mostrar evento a clientes'}
+                                            >
+                                                {selectedEvento?.visible ? '👁' : '👁‍🗨'}
+                                            </button>
+                                            <button
+                                                className="header-selector__delete-btn"
+                                                onClick={handleDeleteEvento}
+                                                title="Eliminar evento"
+                                            >
+                                                🗑
+                                            </button>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -301,88 +310,113 @@ const EventSelector = () => {
                             <span className="header-selector__label">
                                 Áreas <span className="header-selector__count">{planos.length}</span>
                             </span>
-                            <div className="header-selector__chips">
-                                {isLoadingPlanos ? (
-                                    <span className="header-selector__loading">...</span>
-                                ) : (
-                                    <>
-                                        {planos.map(p => (
-                                            <div
-                                                key={p.id}
-                                                className={`area-chip ${planoId === p.id && !isCreatingNewArea ? 'area-chip--active' : ''} ${highlightedPlanoId === p.id ? 'area-chip--highlight' : ''}`}
-                                            >
-                                                <button
-                                                    className="area-chip__name"
-                                                    onClick={() => handleLoadPlano(p.id!)}
-                                                >
-                                                    {p.name}
-                                                </button>
-                                                <button
-                                                    className="area-chip__delete"
-                                                    onClick={() => handleDeletePlano(p.id!)}
-                                                >
-                                                    ×
-                                                </button>
-                                            </div>
-                                        ))}
 
-                                        {isCreatingNewArea ? (
-                                            // Editando nombre de nueva área
-                                            <div className="area-chip area-chip--active area-chip--editing">
-                                                <input
-                                                    ref={newAreaInputRef}
-                                                    type="text"
-                                                    className="area-chip__input"
-                                                    value={newAreaName}
-                                                    onChange={(e) => {
-                                                        setNewAreaName(e.target.value);
-                                                        setPlanoName(e.target.value);
-                                                    }}
-                                                    onKeyDown={handleNewAreaKeyDown}
-                                                    onBlur={handleNewAreaBlur}
-                                                    placeholder="Nombre"
-                                                />
-                                            </div>
-                                        ) : hasUnsavedNewArea ? (
-                                            // Área nueva confirmada pero sin guardar
-                                            <div className="area-chip-group">
-                                                <div className="area-chip area-chip--active area-chip--unsaved">
-                                                    <span className="area-chip__name area-chip__name--static">
-                                                        {planoName}
-                                                    </span>
-                                                    <span className="area-chip__badge">nuevo</span>
+                            {/* En móvil: dropdown select */}
+                            {isMobile ? (
+                                <div className="header-selector__dropdown">
+                                    {isLoadingPlanos ? (
+                                        <span className="header-selector__loading">...</span>
+                                    ) : (
+                                        <select
+                                            value={planoId || ''}
+                                            onChange={(e) => e.target.value && handleLoadPlano(e.target.value)}
+                                        >
+                                            {planos.length === 0 && (
+                                                <option value="">Sin áreas</option>
+                                            )}
+                                            {planos.map(p => (
+                                                <option key={p.id} value={p.id}>
+                                                    {p.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
+                            ) : (
+                                /* En desktop: chips */
+                                <div className="header-selector__chips">
+                                    {isLoadingPlanos ? (
+                                        <span className="header-selector__loading">...</span>
+                                    ) : (
+                                        <>
+                                            {planos.map(p => (
+                                                <div
+                                                    key={p.id}
+                                                    className={`area-chip ${planoId === p.id && !isCreatingNewArea ? 'area-chip--active' : ''} ${highlightedPlanoId === p.id ? 'area-chip--highlight' : ''}`}
+                                                >
                                                     <button
-                                                        className="area-chip__edit"
-                                                        onClick={() => {
-                                                            setIsCreatingNewArea(true);
-                                                            setNewAreaName(planoName);
-                                                        }}
-                                                        title="Editar nombre"
+                                                        className="area-chip__name"
+                                                        onClick={() => handleLoadPlano(p.id!)}
                                                     >
-                                                        ✎
+                                                        {p.name}
+                                                    </button>
+                                                    <button
+                                                        className="area-chip__delete"
+                                                        onClick={() => handleDeletePlano(p.id!)}
+                                                    >
+                                                        ×
                                                     </button>
                                                 </div>
+                                            ))}
+
+                                            {isCreatingNewArea ? (
+                                                // Editando nombre de nueva área
+                                                <div className="area-chip area-chip--active area-chip--editing">
+                                                    <input
+                                                        ref={newAreaInputRef}
+                                                        type="text"
+                                                        className="area-chip__input"
+                                                        value={newAreaName}
+                                                        onChange={(e) => {
+                                                            setNewAreaName(e.target.value);
+                                                            setPlanoName(e.target.value);
+                                                        }}
+                                                        onKeyDown={handleNewAreaKeyDown}
+                                                        onBlur={handleNewAreaBlur}
+                                                        placeholder="Nombre"
+                                                    />
+                                                </div>
+                                            ) : hasUnsavedNewArea ? (
+                                                // Área nueva confirmada pero sin guardar
+                                                <div className="area-chip-group">
+                                                    <div className="area-chip area-chip--active area-chip--unsaved">
+                                                        <span className="area-chip__name area-chip__name--static">
+                                                            {planoName}
+                                                        </span>
+                                                        <span className="area-chip__badge">nuevo</span>
+                                                        <button
+                                                            className="area-chip__edit"
+                                                            onClick={() => {
+                                                                setIsCreatingNewArea(true);
+                                                                setNewAreaName(planoName);
+                                                            }}
+                                                            title="Editar nombre"
+                                                        >
+                                                            ✎
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => savePlano()}
+                                                        disabled={isSaving}
+                                                        className="area-chip__save-btn"
+                                                        title="Guardar nueva área"
+                                                    >
+                                                        {isSaving ? '...' : '✓'}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                // Botón para crear nueva área
                                                 <button
-                                                    onClick={() => savePlano()}
-                                                    disabled={isSaving}
-                                                    className="area-chip__save-btn"
-                                                    title="Guardar nueva área"
+                                                    className="area-chip area-chip--new"
+                                                    onClick={handleNewPlano}
                                                 >
-                                                    {isSaving ? '...' : '✓'}
+                                                    +
                                                 </button>
-                                            </div>
-                                        ) : (
-                                            // Botón para crear nueva área
-                                            <button
-                                                className="area-chip area-chip--new"
-                                                onClick={handleNewPlano}
-                                            >
-                                                +
-                                            </button>
-                                        )}
-                                    </>
-                                )}
-                            </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </>
                 )}

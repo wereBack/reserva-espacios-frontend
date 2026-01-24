@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { usePlanos } from './hooks/usePlanos'
 import { useReservationSocket } from './hooks/useReservationSocket'
-import { createReservation, checkProfileComplete, formatDimensions } from './services/api'
+import { createReservation, checkProfileComplete, formatDimensions, type SpaceData, type ZoneData } from './services/api'
 import PlanoMap from './components/PlanoMap'
 import Legend from './components/Legend'
 import EventSelector from './components/EventSelector'
@@ -16,6 +16,51 @@ import {
     STATUS_DESCRIPTIONS,
 } from './utils/spaceStatus'
 import './client.css'
+
+// Componente memoizado para items de la lista - evita re-renders innecesarios
+interface SpaceListItemProps {
+    space: SpaceData
+    isSelected: boolean
+    onSelect: (id: string) => void
+    zones: ZoneData[]
+    pixelsPerMeter?: number
+}
+
+const SpaceListItem = memo(function SpaceListItem({
+    space,
+    isSelected,
+    onSelect,
+    zones,
+    pixelsPerMeter
+}: SpaceListItemProps) {
+    const status = getSpaceStatus(space)
+    const effectivePrice = getEffectivePrice(space, zones)
+
+    return (
+        <li
+            className={`stand-list-item ${isSelected ? 'stand-list-item--active' : ''}`}
+            onClick={() => onSelect(space.id)}
+        >
+            <div className="stand-list-item__info">
+                <span className="stand-list-item__name">{space.name}</span>
+                <span className="stand-list-item__size">
+                    {formatDimensions(space.width, space.height, pixelsPerMeter)}
+                </span>
+            </div>
+            <div className="stand-list-item__meta">
+                {status !== 'reservado' && (
+                    <span className="stand-list-item__price">
+                        {effectivePrice ? `US$ ${effectivePrice.toLocaleString('es-AR')}` : 'Consultar'}
+                    </span>
+                )}
+                <span className={`stand-list-item__status stand-list-item__status--${status}`}>
+                    {STATUS_LABELS[status]}
+                </span>
+            </div>
+        </li>
+    )
+})
+
 
 const ClientApp = () => {
     const { isAuthenticated, user, login, logout } = useAuth()
@@ -48,6 +93,17 @@ const ClientApp = () => {
     const activePlano = filteredPlanos[selectedPlanoIndex]
     const selectedSpace = activePlano?.spaces.find((s) => s.id === selectedSpaceId)
     const selectedSpaceStatus = selectedSpace ? getSpaceStatus(selectedSpace) : null
+
+    // Memoizar cálculos de zona y precio para evitar recalcular en cada render
+    const selectedZone = useMemo(() => {
+        if (!selectedSpace?.zone_id || !activePlano) return null
+        return activePlano.zones.find(z => z.id === selectedSpace.zone_id) ?? null
+    }, [selectedSpace?.zone_id, activePlano])
+
+    const selectedSpacePrice = useMemo(() => {
+        if (!selectedSpace || !activePlano) return null
+        return getEffectivePrice(selectedSpace, activePlano.zones)
+    }, [selectedSpace, activePlano])
 
     // Filtered spaces for the list
     const filteredSpaces = useMemo(() => {
@@ -230,22 +286,19 @@ const ClientApp = () => {
                                         </div>
 
                                         <div className="stand-detail-meta">
-                                            {/* Zone info */}
-                                            {selectedSpace.zone_id && (() => {
-                                                const zone = activePlano.zones.find(z => z.id === selectedSpace.zone_id)
-                                                return zone ? (
-                                                    <div className="meta-item meta-item--zone">
-                                                        <span className="meta-label">Zona</span>
-                                                        <span className="meta-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <span className="zone-color-dot" style={{ backgroundColor: zone.color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }}></span>
-                                                            {zone.name}
-                                                        </span>
-                                                        {zone.description && (
-                                                            <span className="meta-hint">{zone.description}</span>
-                                                        )}
-                                                    </div>
-                                                ) : null
-                                            })()}
+                                            {/* Zone info - usando variable memoizada */}
+                                            {selectedZone && (
+                                                <div className="meta-item meta-item--zone">
+                                                    <span className="meta-label">Zona</span>
+                                                    <span className="meta-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span className="zone-color-dot" style={{ backgroundColor: selectedZone.color, width: '10px', height: '10px', borderRadius: '50%', display: 'inline-block' }}></span>
+                                                        {selectedZone.name}
+                                                    </span>
+                                                    {selectedZone.description && (
+                                                        <span className="meta-hint">{selectedZone.description}</span>
+                                                    )}
+                                                </div>
+                                            )}
                                             <div className="meta-item">
                                                 <span className="meta-label">Dimensiones</span>
                                                 <span className="meta-value">{formatDimensions(selectedSpace.width, selectedSpace.height, activePlano.pixels_per_meter)}</span>
@@ -254,10 +307,7 @@ const ClientApp = () => {
                                                 <div className="meta-item">
                                                     <span className="meta-label">Precio</span>
                                                     <span className="meta-value meta-value--price">
-                                                        {(() => {
-                                                            const effectivePrice = getEffectivePrice(selectedSpace, activePlano.zones)
-                                                            return effectivePrice ? formatPrice(effectivePrice) : 'Consultar'
-                                                        })()}
+                                                        {selectedSpacePrice ? formatPrice(selectedSpacePrice) : 'Consultar'}
                                                     </span>
                                                 </div>
                                             )}
@@ -388,36 +438,16 @@ const ClientApp = () => {
                                 </div>
 
                                 <ul className="stand-list">
-                                    {filteredSpaces.map((space) => {
-                                        const status = getSpaceStatus(space)
-                                        return (
-                                            <li
-                                                key={space.id}
-                                                className={`stand-list-item ${selectedSpaceId === space.id ? 'stand-list-item--active' : ''}`}
-                                                onClick={() => setSelectedSpaceId(space.id)}
-                                            >
-                                                <div className="stand-list-item__info">
-                                                    <span className="stand-list-item__name">{space.name}</span>
-                                                    <span className="stand-list-item__size">
-                                                        {formatDimensions(space.width, space.height, activePlano.pixels_per_meter)}
-                                                    </span>
-                                                </div>
-                                                <div className="stand-list-item__meta">
-                                                    {status !== 'reservado' && (
-                                                        <span className="stand-list-item__price">
-                                                            {(() => {
-                                                                const effectivePrice = getEffectivePrice(space, activePlano.zones)
-                                                                return effectivePrice ? `US$ ${effectivePrice.toLocaleString('es-AR')}` : 'Consultar'
-                                                            })()}
-                                                        </span>
-                                                    )}
-                                                    <span className={`stand-list-item__status stand-list-item__status--${status}`}>
-                                                        {STATUS_LABELS[status]}
-                                                    </span>
-                                                </div>
-                                            </li>
-                                        )
-                                    })}
+                                    {filteredSpaces.map((space) => (
+                                        <SpaceListItem
+                                            key={space.id}
+                                            space={space}
+                                            isSelected={selectedSpaceId === space.id}
+                                            onSelect={setSelectedSpaceId}
+                                            zones={activePlano.zones}
+                                            pixelsPerMeter={activePlano.pixels_per_meter}
+                                        />
+                                    ))}
                                     {filteredSpaces.length === 0 && (
                                         <li className="stand-list-empty">
                                             No se encontraron stands con esos filtros.

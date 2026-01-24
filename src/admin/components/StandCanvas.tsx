@@ -14,6 +14,7 @@ import CanvasControls from '../../components/CanvasControls'
 import ShapeCreationModal from './ShapeCreationModal'
 import ScaleCalibrationModal from './ScaleCalibrationModal'
 import { Circle } from 'react-konva'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 type Subject = 'stand' | 'zone'
 type ToolAction = 'select' | 'rect'
@@ -51,12 +52,12 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const showGrid = useStandStore((state) => state.showGrid)
   const snapPosition = useStandStore((state) => state.snapPosition)
   const savePlano = useStandStore((state) => state.savePlano)
-  
+
   // Subscribe to grid-related state to trigger re-renders when they change
   const gridSize = useStandStore((state) => state.gridSize)
   const gridUnit = useStandStore((state) => state.gridUnit)
   const pixelsPerMeter = useStandStore((state) => state.pixelsPerMeter)
-  
+
   // Compute grid size in pixels reactively
   const gridSizePixels = useMemo(() => {
     if (gridUnit === 'meters' && pixelsPerMeter > 0) {
@@ -64,11 +65,11 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     }
     return gridSize
   }, [gridSize, gridUnit, pixelsPerMeter])
-  
+
   // Size mode
   const sizeMode = useStandStore((state) => state.sizeMode)
   const getMeasuredSizeInPixels = useStandStore((state) => state.getMeasuredSizeInPixels)
-  
+
   // Compute measured size in pixels
   const measuredSizeInPixels = useMemo(() => {
     if (sizeMode !== 'measured') return null
@@ -103,7 +104,12 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const MAX_SCALE = 5
   const SCALE_STEP = 0.15
 
-  const modeMeta = useMemo(() => parseMode(mode), [mode])
+  // Detectar si es móvil - deshabilitar creación de stands
+  const isMobile = useIsMobile(768)
+
+  // En móvil, forzar modo selección (no se puede crear)
+  const effectiveMode: DrawingMode = isMobile ? 'select' : mode
+  const modeMeta = useMemo(() => parseMode(effectiveMode), [effectiveMode])
 
   // Track container size
   useEffect(() => {
@@ -169,8 +175,11 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     setStagePosition({ x: Math.max(0, centeredX), y: Math.max(0, centeredY) })
   }, [fitScale, containerSize, canvasWidth, canvasHeight])
 
-  // Handle wheel zoom
+  // Handle wheel zoom (deshabilitado en móvil)
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
+    // En móvil el plano está fijo
+    if (isMobile) return
+
     e.evt.preventDefault()
     const stage = stageRef.current
     if (!stage) return
@@ -607,8 +616,9 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     }
   }
 
-  const canDragStand = modeMeta.subject === 'stand' && modeMeta.tool === 'select'
-  const canDragZone = modeMeta.subject === 'zone' && modeMeta.tool === 'select'
+  // En móvil no se permite drag (solo visualización y selección)
+  const canDragStand = !isMobile && modeMeta.subject === 'stand' && modeMeta.tool === 'select'
+  const canDragZone = !isMobile && modeMeta.subject === 'zone' && modeMeta.tool === 'select'
 
   // Colores según estado de reserva
   const getStandFillColor = (stand: Stand): string => {
@@ -720,13 +730,17 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         className="canvas-stage"
         onWheel={handleWheel}
         onMouseDown={(e) => {
-          if (isSpacePressed) {
+          // En móvil no hay panning
+          if (!isMobile && isSpacePressed) {
             setIsPanning(true)
-          } else {
+          } else if (!isMobile) {
             handleStageMouseDown(e)
           }
         }}
         onMouseMove={(e) => {
+          // En móvil no hay panning ni dibujo
+          if (isMobile) return
+
           if (isPanning) {
             const stage = stageRef.current
             if (stage) {
@@ -746,13 +760,16 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           }
         }}
         onMouseUp={() => {
+          // En móvil no hay acciones
+          if (isMobile) return
+
           if (isPanning) {
             setIsPanning(false)
           } else {
             handleStageMouseUp()
           }
         }}
-        style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : stageCursor }}
+        style={{ cursor: isMobile ? 'default' : (isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : stageCursor) }}
       >
         <Layer listening={false}>
           {backgroundImage ? (
@@ -852,16 +869,19 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         </Layer>
       </Stage>
 
-      <CanvasControls
-        scale={scale}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onReset={resetView}
-        onFitToScreen={fitToScreen}
-        minScale={MIN_SCALE}
-        maxScale={MAX_SCALE}
-        showPanHint={true}
-      />
+      {/* Solo mostrar controles de zoom en desktop */}
+      {!isMobile && (
+        <CanvasControls
+          scale={scale}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onReset={resetView}
+          onFitToScreen={fitToScreen}
+          minScale={MIN_SCALE}
+          maxScale={MAX_SCALE}
+          showPanHint={true}
+        />
+      )}
 
       <ShapeCreationModal
         isOpen={pendingShape !== null}

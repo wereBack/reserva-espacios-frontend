@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useShallow } from 'zustand/shallow'
 import StandCanvas from './components/StandCanvas'
 import StandList from './components/StandList'
 import ZoneList from './components/ZoneList'
@@ -15,9 +16,18 @@ import './admin.css'
 
 const AdminApp = () => {
     const { user, logout } = useAuth()
-    const backgroundUrl = useStandStore((state) => state.backgroundUrl)
-    const eventoId = useStandStore((state) => state.eventoId)
+    // Usar shallow compare para evitar re-renders innecesarios
+    const { backgroundUrl, eventoId } = useStandStore(
+        useShallow((state) => ({
+            backgroundUrl: state.backgroundUrl,
+            eventoId: state.eventoId,
+        }))
+    )
     const [hasEventos, setHasEventos] = useState<boolean | null>(null) // null = loading
+
+    // Mobile responsive state
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    const [isInspectorExpanded, setIsInspectorExpanded] = useState(false)
 
     useEffect(() => {
         const checkEventos = async () => {
@@ -31,11 +41,25 @@ const AdminApp = () => {
         checkEventos()
     }, [eventoId])
 
+    // Close sidebar when clicking overlay
+    const closeSidebar = () => setIsSidebarOpen(false)
+
+    // Toggle inspector on mobile
+    const toggleInspector = () => setIsInspectorExpanded(!isInspectorExpanded)
+
     return (
         <div className="admin-layout">
             {/* Top Header */}
             <header className="admin-header">
                 <div className="admin-header__brand">
+                    {/* Mobile menu button */}
+                    <button
+                        className="admin-header__menu-btn"
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        aria-label="Abrir menú"
+                    >
+                        ☰
+                    </button>
                     <img
                         src={logoUM}
                         alt="Universidad de Montevideo"
@@ -58,8 +82,14 @@ const AdminApp = () => {
 
             {/* Main Content */}
             <div className="admin-content">
+                {/* Overlay for mobile sidebar */}
+                <div
+                    className={`admin-sidebar-overlay ${isSidebarOpen ? 'is-visible' : ''}`}
+                    onClick={closeSidebar}
+                />
+
                 {/* Left Sidebar - Toolbar */}
-                <aside className="admin-sidebar">
+                <aside className={`admin-sidebar ${isSidebarOpen ? 'is-open' : ''}`}>
                     <Toolbar />
                 </aside>
 
@@ -91,15 +121,26 @@ const AdminApp = () => {
                     </div>
                 </main>
 
-                {/* Right Panel - Inspector */}
-                <aside className="admin-inspector">
-                    <PendingReservations />
-                    <PendingCancellations />
-                    <StandList />
-                    <ZoneList />
+                {/* Right Panel - Inspector (bottom sheet on mobile) */}
+                <aside className={`admin-inspector ${isInspectorExpanded ? 'is-expanded' : ''}`}>
+                    {/* Handle para expandir/colapsar en móvil */}
+                    <div
+                        className="admin-inspector__handle"
+                        onClick={toggleInspector}
+                    />
+                    {/* Contenido - stop propagation para que clicks no colapsen el panel */}
+                    <div
+                        className="admin-inspector__content"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <PendingReservations />
+                        <PendingCancellations />
+                        <StandList />
+                        <ZoneList />
+                    </div>
                 </aside>
             </div>
-            
+
             {/* Modals */}
             <MeasuredSizeModal />
         </div>
@@ -107,4 +148,3 @@ const AdminApp = () => {
 }
 
 export default AdminApp
-

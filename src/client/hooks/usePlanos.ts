@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchPlanos, type PlanoData } from '../services/api';
 
 export function usePlanos() {
@@ -6,34 +6,25 @@ export function usePlanos() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const load = async () => {
-            try {
-                setIsLoading(true);
-                setError(null);
-                const data = await fetchPlanos();
-                setPlanos(data);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'Error al cargar planos');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        load();
-    }, []);
-
-    const refetch = async () => {
+    // Una sola función reutilizable para fetch
+    const fetchData = useCallback(async () => {
         try {
             setIsLoading(true);
+            setError(null);
             const data = await fetchPlanos();
             setPlanos(data);
-            setError(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Error al cargar planos');
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    return { planos, isLoading, error, refetch };
+    // Cargar datos al montar
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    return { planos, isLoading, error, refetch: fetchData };
 }
+
