@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useShallow } from 'zustand/shallow'
 import StandCanvas from './components/StandCanvas'
 import StandList from './components/StandList'
 import ZoneList from './components/ZoneList'
@@ -15,8 +16,13 @@ import './admin.css'
 
 const AdminApp = () => {
     const { user, logout } = useAuth()
-    const backgroundUrl = useStandStore((state) => state.backgroundUrl)
-    const eventoId = useStandStore((state) => state.eventoId)
+    // Usar shallow compare para evitar re-renders innecesarios
+    const { backgroundUrl, eventoId } = useStandStore(
+        useShallow((state) => ({
+            backgroundUrl: state.backgroundUrl,
+            eventoId: state.eventoId,
+        }))
+    )
     const [hasEventos, setHasEventos] = useState<boolean | null>(null) // null = loading
 
     useEffect(() => {
@@ -99,7 +105,7 @@ const AdminApp = () => {
                     <ZoneList />
                 </aside>
             </div>
-            
+
             {/* Modals */}
             <MeasuredSizeModal />
         </div>

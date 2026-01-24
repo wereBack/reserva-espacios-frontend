@@ -90,7 +90,7 @@ type StandStore = {
   planoWidthMeters: number | null
   planoHeightMeters: number | null
   scaleMode: 'auto' | 'manual'
-  
+
   // Size mode
   sizeMode: SizeMode
   measuredWidth: number
@@ -155,7 +155,7 @@ type StandStore = {
   getPresetInPixels: (preset: RectPreset) => { width: number; height: number }
   getGridSizeInPixels: () => number
   hasScale: () => boolean
-  
+
   // Size mode actions
   setSizeMode: (mode: SizeMode) => void
   setMeasuredWidth: (width: number) => void
@@ -192,18 +192,26 @@ const DEFAULT_PRESETS: RectPreset[] = [
   { id: 'large', label: '4 x 3 m', width: 4, height: 3 },
 ]
 
-// Load custom presets from localStorage
+// Cache en memoria para localStorage (evita lecturas repetidas)
+let cachedCustomPresets: RectPreset[] | null = null
+
+// Load custom presets from localStorage with cache
 const loadCustomPresets = (): RectPreset[] => {
+  if (cachedCustomPresets !== null) return cachedCustomPresets
   try {
     const saved = localStorage.getItem('customPresets')
-    return saved ? JSON.parse(saved) : []
+    const parsed: RectPreset[] = saved ? JSON.parse(saved) : []
+    cachedCustomPresets = parsed
+    return parsed
   } catch {
+    cachedCustomPresets = []
     return []
   }
 }
 
-// Save custom presets to localStorage
+// Save custom presets to localStorage and update cache
 const saveCustomPresets = (presets: RectPreset[]) => {
+  cachedCustomPresets = presets
   try {
     localStorage.setItem('customPresets', JSON.stringify(presets))
   } catch {
@@ -322,7 +330,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
   planoWidthMeters: null,
   planoHeightMeters: null,
   scaleMode: 'manual' as const,
-  
+
   // Size mode - initial values
   sizeMode: 'free' as SizeMode,
   measuredWidth: 3,
@@ -708,7 +716,7 @@ export const useStandStore = create<StandStore>((set, get) => ({
     }
     return gridSize
   },
-  
+
   hasScale: () => get().pixelsPerMeter > 0,
 
   snapPosition: (x, y) => {
@@ -763,25 +771,25 @@ export const useStandStore = create<StandStore>((set, get) => ({
     return { calibrationPoints: newPoints }
   }),
   setIsCalibrating: (calibrating) => set({ isCalibrating: calibrating }),
-  
+
   // Size mode actions
   setSizeMode: (mode) => set({ sizeMode: mode }),
   setMeasuredWidth: (width) => set({ measuredWidth: width }),
   setMeasuredHeight: (height) => set({ measuredHeight: height }),
   setShowMeasuredModal: (show) => set({ showMeasuredModal: show }),
-  
+
   addCustomPreset: (preset) => set((state) => {
     const newPresets = [...state.customPresets, preset]
     saveCustomPresets(newPresets)
     return { customPresets: newPresets }
   }),
-  
+
   removeCustomPreset: (id) => set((state) => {
     const newPresets = state.customPresets.filter(p => p.id !== id)
     saveCustomPresets(newPresets)
     return { customPresets: newPresets }
   }),
-  
+
   getMeasuredSizeInPixels: () => {
     const { measuredWidth, measuredHeight, pixelsPerMeter } = get()
     if (pixelsPerMeter > 0) {
