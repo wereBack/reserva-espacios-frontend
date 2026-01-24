@@ -175,8 +175,11 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     setStagePosition({ x: Math.max(0, centeredX), y: Math.max(0, centeredY) })
   }, [fitScale, containerSize, canvasWidth, canvasHeight])
 
-  // Handle wheel zoom
+  // Handle wheel zoom (deshabilitado en móvil)
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
+    // En móvil el plano está fijo
+    if (isMobile) return
+
     e.evt.preventDefault()
     const stage = stageRef.current
     if (!stage) return
@@ -727,13 +730,17 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         className="canvas-stage"
         onWheel={handleWheel}
         onMouseDown={(e) => {
-          if (isSpacePressed) {
+          // En móvil no hay panning
+          if (!isMobile && isSpacePressed) {
             setIsPanning(true)
-          } else {
+          } else if (!isMobile) {
             handleStageMouseDown(e)
           }
         }}
         onMouseMove={(e) => {
+          // En móvil no hay panning ni dibujo
+          if (isMobile) return
+
           if (isPanning) {
             const stage = stageRef.current
             if (stage) {
@@ -753,13 +760,16 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
           }
         }}
         onMouseUp={() => {
+          // En móvil no hay acciones
+          if (isMobile) return
+
           if (isPanning) {
             setIsPanning(false)
           } else {
             handleStageMouseUp()
           }
         }}
-        style={{ cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : stageCursor }}
+        style={{ cursor: isMobile ? 'default' : (isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : stageCursor) }}
       >
         <Layer listening={false}>
           {backgroundImage ? (
@@ -859,16 +869,19 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
         </Layer>
       </Stage>
 
-      <CanvasControls
-        scale={scale}
-        onZoomIn={zoomIn}
-        onZoomOut={zoomOut}
-        onReset={resetView}
-        onFitToScreen={fitToScreen}
-        minScale={MIN_SCALE}
-        maxScale={MAX_SCALE}
-        showPanHint={true}
-      />
+      {/* Solo mostrar controles de zoom en desktop */}
+      {!isMobile && (
+        <CanvasControls
+          scale={scale}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onReset={resetView}
+          onFitToScreen={fitToScreen}
+          minScale={MIN_SCALE}
+          maxScale={MAX_SCALE}
+          showPanHint={true}
+        />
+      )}
 
       <ShapeCreationModal
         isOpen={pendingShape !== null}

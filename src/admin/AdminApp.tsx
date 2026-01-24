@@ -122,14 +122,22 @@ const AdminApp = () => {
                 </main>
 
                 {/* Right Panel - Inspector (bottom sheet on mobile) */}
-                <aside
-                    className={`admin-inspector ${isInspectorExpanded ? 'is-expanded' : ''}`}
-                    onClick={toggleInspector}
-                >
-                    <PendingReservations />
-                    <PendingCancellations />
-                    <StandList />
-                    <ZoneList />
+                <aside className={`admin-inspector ${isInspectorExpanded ? 'is-expanded' : ''}`}>
+                    {/* Handle para expandir/colapsar en móvil */}
+                    <div
+                        className="admin-inspector__handle"
+                        onClick={toggleInspector}
+                    />
+                    {/* Contenido - stop propagation para que clicks no colapsen el panel */}
+                    <div
+                        className="admin-inspector__content"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <PendingReservations />
+                        <PendingCancellations />
+                        <StandList />
+                        <ZoneList />
+                    </div>
                 </aside>
             </div>
 

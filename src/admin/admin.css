@@ -4301,30 +4301,50 @@
   /* Inspector como bottom panel - más visible por defecto */
   .admin-inspector {
     position: fixed;
-    bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
-    height: auto;
-    max-height: 70vh;
+    /* Cuando colapsado: mostrar solo 100px desde abajo */
+    bottom: 0;
+    top: auto;
+    height: 100px;
     border-left: none;
     border-top: 1px solid #e2e8f0;
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-    /* Mostrar más contenido por defecto */
-    transform: translateY(calc(100% - 100px));
-    transition: transform 0.3s ease;
+    transition: all 0.3s ease;
     z-index: 100;
     overflow: hidden;
+    background: white;
   }
 
   .admin-inspector.is-expanded {
-    transform: translateY(0);
-    overflow-y: auto;
+    /* Expandir: desde 56px (debajo del header) hasta el bottom */
+    top: 56px;
+    height: calc(100vh - 56px);
+    bottom: 0;
+    overflow: hidden;
+    /* El scroll va en el contenido */
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
   }
 
-  /* Inspector handle for dragging */
-  .admin-inspector::before {
+  /* Handle para expandir/colapsar - área clickeable */
+  .admin-inspector__handle {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    background: white;
+    cursor: pointer;
+    z-index: 10;
+    flex-shrink: 0;
+  }
+
+  /* Línea visual del handle */
+  .admin-inspector__handle::before {
     content: '';
     position: absolute;
     top: 8px;
@@ -4336,8 +4356,39 @@
     border-radius: 2px;
   }
 
+  /* Contenido del inspector - debe ocupar el espacio restante */
+  .admin-inspector__content {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+
+  /* Remover el pseudo-elemento anterior */
+  .admin-inspector::before {
+    display: none;
+  }
+
   .admin-inspector .toolbar-panel {
     padding-top: 20px;
+    height: auto;
+    min-height: 0;
+  }
+
+  /* Eliminar espacio extra en el inspector expandido */
+  .admin-inspector.is-expanded .toolbar-panel {
+    padding-bottom: 0;
+  }
+
+  .admin-inspector .stand-list,
+  .admin-inspector .zone-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  /* No expandir items internos innecesariamente */
+  .admin-inspector .stand-list-item,
+  .admin-inspector .zone-list-item {
+    flex-shrink: 0;
   }
 
   /* Header compact */
@@ -4371,14 +4422,41 @@
     padding: 0.5rem 0.75rem;
   }
 
-  .header-selector__row {
-    gap: 0.4rem;
+  .header-selector {
+    width: 100%;
   }
 
-  .header-selector__select {
-    font-size: 0.8rem;
-    padding: 0.4rem 0.6rem;
-    min-width: 120px;
+  .header-selector__row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .header-selector__group {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .header-selector__group--areas {
+    flex: 1 1 100%;
+  }
+
+  .header-selector__divider {
+    display: none;
+  }
+
+  .header-selector__dropdown {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .header-selector__dropdown select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .header-selector__label {
+    flex-shrink: 0;
+    min-width: 60px;
   }
 
   .header-selector__btn {
