@@ -7,7 +7,6 @@ on:
 
 env:
   DOMAIN: reserva-espacios-um.space
-  BACKEND_DIR: /home/ec2-user/reserva-espacios-backend
 
 jobs:
   build-and-deploy:
@@ -52,21 +51,23 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: DOMAIN
           script: |
-            # Create temp directory for new files
-            mkdir -p /tmp/frontend-deploy
+            # Define paths using $HOME (works with any user)
+            FRONTEND_DIR="$HOME/reserva-espacios-frontend"
+            BACKEND_DIR="$HOME/reserva-espacios-backend"
             
             # Pull latest frontend code
-            cd /home/ec2-user/reserva-espacios-frontend || git clone https://github.com/${{ github.repository }}.git /home/ec2-user/reserva-espacios-frontend
-            cd /home/ec2-user/reserva-espacios-frontend
+            cd "$FRONTEND_DIR" || git clone https://github.com/${{ github.repository }}.git "$FRONTEND_DIR"
+            cd "$FRONTEND_DIR"
             git fetch origin
             git checkout main
             git pull origin main
             
             # Create production env
             cat > .env.production << EOF
-            VITE_API_BASE=https://api.${{ env.DOMAIN }}
-            VITE_KEYCLOAK_URL=https://auth.${{ env.DOMAIN }}
+            VITE_API_BASE=https://api.$DOMAIN
+            VITE_KEYCLOAK_URL=https://auth.$DOMAIN
             VITE_KEYCLOAK_REALM=reserva-espacios
             VITE_KEYCLOAK_CLIENT_ID=front-admin
             EOF
@@ -77,11 +78,11 @@ jobs:
             npm run build
             
             # Copy to nginx frontend directory
-            rm -rf ${{ env.BACKEND_DIR }}/nginx/frontend/*
-            cp -r dist/* ${{ env.BACKEND_DIR }}/nginx/frontend/
+            rm -rf "$BACKEND_DIR/nginx/frontend/"*
+            cp -r dist/* "$BACKEND_DIR/nginx/frontend/"
             
-            # Reload nginx to pick up new files (optional, static files don't need reload)
-            cd ${{ env.BACKEND_DIR }}
+            # Reload nginx
+            cd "$BACKEND_DIR"
             docker compose exec -T nginx nginx -s reload || true
             
             echo "Frontend deployed successfully!"
