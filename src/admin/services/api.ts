@@ -25,6 +25,7 @@ export interface SpaceData {
     width: number;
     height: number;
     color: string;
+    rotation?: number;
     name: string;
     zone_id?: string;
     price?: number;
@@ -44,6 +45,7 @@ export interface ZoneData {
     width: number;
     height: number;
     color: string;
+    rotation?: number;
     name: string;
     description?: string;
     price?: number;
@@ -205,6 +207,7 @@ export interface SpaceUpdateData {
     width?: number;
     height?: number;
     color?: string;
+    rotation?: number;
     zone_id?: string | null;
 }
 
@@ -224,6 +227,7 @@ export interface SpaceCreateData {
     width: number;
     height: number;
     color: string;
+    rotation?: number;
     name: string;
     price?: number | null;
     zone_id?: string;
@@ -246,6 +250,7 @@ export interface ZoneUpdateData {
     y?: number;
     width?: number;
     height?: number;
+    rotation?: number;
 }
 
 export async function updateZone(id: string, data: ZoneUpdateData): Promise<ZoneData> {
@@ -264,6 +269,7 @@ export interface ZoneCreateData {
     width: number;
     height: number;
     color: string;
+    rotation?: number;
     name: string;
     description?: string;
     price?: number | null;
@@ -284,6 +290,7 @@ export interface SpaceWithReservation {
     width: number;
     height: number;
     color: string;
+    rotation?: number;
     name: string;
     price?: number;
     zone_id?: string;

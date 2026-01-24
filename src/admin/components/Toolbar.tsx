@@ -47,7 +47,7 @@ const Toolbar = () => {
   const setPixelsPerMeter = useStandStore((state) => state.setPixelsPerMeter)
   const setShowCalibrationModal = useStandStore((state) => state.setShowCalibrationModal)
   const hasScale = useStandStore((state) => state.hasScale)
-  
+
   // Size mode
   const sizeMode = useStandStore((state) => state.sizeMode)
   const setSizeMode = useStandStore((state) => state.setSizeMode)
@@ -163,7 +163,7 @@ const Toolbar = () => {
               <div className="toolbar-size-mode__info">
                 <span className="toolbar-size-mode__name">Medido</span>
                 <span className="toolbar-size-mode__desc">
-                  {sizeMode === 'measured' 
+                  {sizeMode === 'measured'
                     ? `${measuredWidth} x ${measuredHeight} ${hasScale() ? 'm' : 'px'}`
                     : 'Ingresa dimensiones exactas'
                   }
@@ -171,7 +171,7 @@ const Toolbar = () => {
               </div>
             </button>
           </div>
-          
+
           {/* Custom presets */}
           {customPresets.length > 0 && (
             <div className="toolbar-custom-presets">
@@ -287,6 +287,25 @@ const Toolbar = () => {
               )}
             </div>
           </div>
+
+          {/* Grid offset controls - only show when grid is visible */}
+          {showGrid && (
+            <div className="toolbar-grid-offset">
+              <span className="toolbar-grid-offset__label">Mover cuadrícula:</span>
+              <div className="toolbar-grid-offset__controls">
+                <div className="toolbar-grid-offset__row">
+                  <span>X:</span>
+                  <button onClick={() => useStandStore.getState().setGridOffset(useStandStore.getState().gridOffsetX - 5, useStandStore.getState().gridOffsetY)}>◀</button>
+                  <button onClick={() => useStandStore.getState().setGridOffset(useStandStore.getState().gridOffsetX + 5, useStandStore.getState().gridOffsetY)}>▶</button>
+                </div>
+                <div className="toolbar-grid-offset__row">
+                  <span>Y:</span>
+                  <button onClick={() => useStandStore.getState().setGridOffset(useStandStore.getState().gridOffsetX, useStandStore.getState().gridOffsetY - 5)}>▲</button>
+                  <button onClick={() => useStandStore.getState().setGridOffset(useStandStore.getState().gridOffsetX, useStandStore.getState().gridOffsetY + 5)}>▼</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
