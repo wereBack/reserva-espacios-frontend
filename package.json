@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "keycloak-js": "^26.2.2",
-    "konva": "^10.0.12",
+    "konva": "^10.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-konva": "^19.2.1",
