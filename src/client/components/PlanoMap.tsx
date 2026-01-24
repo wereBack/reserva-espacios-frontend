@@ -3,6 +3,7 @@ import { Group, Layer, Rect, Stage, Text, Image as KonvaImage } from 'react-konv
 import type { KonvaEventObject } from 'konva/lib/Node'
 import type { PlanoData, SpaceData, ZoneData } from '../services/api'
 import { useElementSize } from '../../hooks/useElementSize'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { toProxyUrl } from '../../utils/imageProxy'
 
 type PlanoMapProps = {
@@ -21,6 +22,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
     const containerRef = useRef<HTMLDivElement | null>(null)
     const size = useElementSize(containerRef)
+    const isMobile = useIsMobile(768)
     const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
 
     // Use actual image dimensions when available, fallback to plano dimensions
@@ -179,18 +181,20 @@ const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
                                         stroke={isSelected ? '#0f172a' : meta.color}
                                         strokeWidth={isSelected ? 3 : 2}
                                     />
-                                    <Text
-                                        x={(-space.width / 2) * stageDimensions.scale}
-                                        y={-9} // Centered vertically (approx)
-                                        width={space.width * stageDimensions.scale}
-                                        text={space.name}
-                                        fontSize={14}
-                                        fontStyle="600"
-                                        fill="#0f172a"
-                                        align="center"
-                                        verticalAlign="middle"
-                                        height={space.height * stageDimensions.scale}
-                                    />
+                                    {!isMobile && (
+                                        <Text
+                                            x={(-space.width / 2) * stageDimensions.scale}
+                                            y={-9} // Centered vertically (approx)
+                                            width={space.width * stageDimensions.scale}
+                                            text={space.name}
+                                            fontSize={14}
+                                            fontStyle="600"
+                                            fill="#0f172a"
+                                            align="center"
+                                            verticalAlign="middle"
+                                            height={space.height * stageDimensions.scale}
+                                        />
+                                    )}
                                 </Group>
                             )
                         })}
