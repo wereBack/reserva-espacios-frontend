@@ -394,8 +394,9 @@ describe('standStore', () => {
       const preset = getRectPreset()
       expect(preset).not.toBeNull()
       expect(preset?.id).toBe('small')
-      expect(preset?.width).toBe(160)
-      expect(preset?.height).toBe(160)
+      // Note: presets are defined in meters, not pixels
+      expect(preset?.width).toBe(2)
+      expect(preset?.height).toBe(2)
     })
 
     it('retorna null si no hay preset seleccionado', () => {
