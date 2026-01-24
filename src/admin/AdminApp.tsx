@@ -25,6 +25,10 @@ const AdminApp = () => {
     )
     const [hasEventos, setHasEventos] = useState<boolean | null>(null) // null = loading
 
+    // Mobile responsive state
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    const [isInspectorExpanded, setIsInspectorExpanded] = useState(false)
+
     useEffect(() => {
         const checkEventos = async () => {
             try {
@@ -37,11 +41,25 @@ const AdminApp = () => {
         checkEventos()
     }, [eventoId])
 
+    // Close sidebar when clicking overlay
+    const closeSidebar = () => setIsSidebarOpen(false)
+
+    // Toggle inspector on mobile
+    const toggleInspector = () => setIsInspectorExpanded(!isInspectorExpanded)
+
     return (
         <div className="admin-layout">
             {/* Top Header */}
             <header className="admin-header">
                 <div className="admin-header__brand">
+                    {/* Mobile menu button */}
+                    <button
+                        className="admin-header__menu-btn"
+                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                        aria-label="Abrir menú"
+                    >
+                        ☰
+                    </button>
                     <img
                         src={logoUM}
                         alt="Universidad de Montevideo"
@@ -64,8 +82,14 @@ const AdminApp = () => {
 
             {/* Main Content */}
             <div className="admin-content">
+                {/* Overlay for mobile sidebar */}
+                <div
+                    className={`admin-sidebar-overlay ${isSidebarOpen ? 'is-visible' : ''}`}
+                    onClick={closeSidebar}
+                />
+
                 {/* Left Sidebar - Toolbar */}
-                <aside className="admin-sidebar">
+                <aside className={`admin-sidebar ${isSidebarOpen ? 'is-open' : ''}`}>
                     <Toolbar />
                 </aside>
 
@@ -97,8 +121,11 @@ const AdminApp = () => {
                     </div>
                 </main>
 
-                {/* Right Panel - Inspector */}
-                <aside className="admin-inspector">
+                {/* Right Panel - Inspector (bottom sheet on mobile) */}
+                <aside
+                    className={`admin-inspector ${isInspectorExpanded ? 'is-expanded' : ''}`}
+                    onClick={toggleInspector}
+                >
                     <PendingReservations />
                     <PendingCancellations />
                     <StandList />
@@ -113,4 +140,3 @@ const AdminApp = () => {
 }
 
 export default AdminApp
-

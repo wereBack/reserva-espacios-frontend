@@ -14,6 +14,7 @@ import CanvasControls from '../../components/CanvasControls'
 import ShapeCreationModal from './ShapeCreationModal'
 import ScaleCalibrationModal from './ScaleCalibrationModal'
 import { Circle } from 'react-konva'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 type Subject = 'stand' | 'zone'
 type ToolAction = 'select' | 'rect'
@@ -51,12 +52,12 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const showGrid = useStandStore((state) => state.showGrid)
   const snapPosition = useStandStore((state) => state.snapPosition)
   const savePlano = useStandStore((state) => state.savePlano)
-  
+
   // Subscribe to grid-related state to trigger re-renders when they change
   const gridSize = useStandStore((state) => state.gridSize)
   const gridUnit = useStandStore((state) => state.gridUnit)
   const pixelsPerMeter = useStandStore((state) => state.pixelsPerMeter)
-  
+
   // Compute grid size in pixels reactively
   const gridSizePixels = useMemo(() => {
     if (gridUnit === 'meters' && pixelsPerMeter > 0) {
@@ -64,11 +65,11 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     }
     return gridSize
   }, [gridSize, gridUnit, pixelsPerMeter])
-  
+
   // Size mode
   const sizeMode = useStandStore((state) => state.sizeMode)
   const getMeasuredSizeInPixels = useStandStore((state) => state.getMeasuredSizeInPixels)
-  
+
   // Compute measured size in pixels
   const measuredSizeInPixels = useMemo(() => {
     if (sizeMode !== 'measured') return null
@@ -103,7 +104,12 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   const MAX_SCALE = 5
   const SCALE_STEP = 0.15
 
-  const modeMeta = useMemo(() => parseMode(mode), [mode])
+  // Detectar si es móvil - deshabilitar creación de stands
+  const isMobile = useIsMobile(768)
+
+  // En móvil, forzar modo selección (no se puede crear)
+  const effectiveMode: DrawingMode = isMobile ? 'select' : mode
+  const modeMeta = useMemo(() => parseMode(effectiveMode), [effectiveMode])
 
   // Track container size
   useEffect(() => {
@@ -607,8 +613,9 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     }
   }
 
-  const canDragStand = modeMeta.subject === 'stand' && modeMeta.tool === 'select'
-  const canDragZone = modeMeta.subject === 'zone' && modeMeta.tool === 'select'
+  // En móvil no se permite drag (solo visualización y selección)
+  const canDragStand = !isMobile && modeMeta.subject === 'stand' && modeMeta.tool === 'select'
+  const canDragZone = !isMobile && modeMeta.subject === 'zone' && modeMeta.tool === 'select'
 
   // Colores según estado de reserva
   const getStandFillColor = (stand: Stand): string => {
