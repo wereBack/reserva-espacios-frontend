@@ -60,7 +60,7 @@ button {
   justify-content: center;
   height: 100vh;
   gap: 1rem;
-  background-color: var(--um-blue);
+  background-color: var(--um-blue-dark);
   color: white;
 }
 
