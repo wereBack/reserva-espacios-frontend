@@ -192,6 +192,15 @@
   overflow: hidden;
 }
 
+/* Inspector content container - enables both lists to scroll */
+.admin-inspector__content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* ==================== TOOLBAR PANEL ==================== */
 .toolbar-panel {
   display: flex;
