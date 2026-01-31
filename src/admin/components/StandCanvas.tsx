@@ -566,15 +566,23 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
     zone: Zone,
   ) => {
     const node = event.target
-    const deltaX = node.x()
-    const deltaY = node.y()
-    node.position({ x: 0, y: 0 })
+    // The node position is now absolute (centerX, centerY after drag)
+    const newCenterX = node.x()
+    const newCenterY = node.y()
+
+    // Calculate the original center
+    const originalCenterX = zone.x + zone.width / 2
+    const originalCenterY = zone.y + zone.height / 2
+
+    // Calculate delta from original center
+    const deltaX = newCenterX - originalCenterX
+    const deltaY = newCenterY - originalCenterY
 
     if (deltaX === 0 && deltaY === 0) {
       return
     }
 
-    // Calculate new position with snap
+    // Calculate new top-left position with snap
     const rawX = zone.x + deltaX
     const rawY = zone.y + deltaY
     const snapped = snapPosition(rawX, rawY)
@@ -627,8 +635,10 @@ const StandCanvas = ({ backgroundSrc }: StandCanvasProps) => {
   }
 
   // En móvil no se permite drag (solo visualización y selección)
-  const canDragStand = !isMobile && modeMeta.subject === 'stand' && modeMeta.tool === 'select'
-  const canDragZone = !isMobile && modeMeta.subject === 'zone' && modeMeta.tool === 'select'
+  // Allow dragging stands in select mode or stand-select mode
+  const canDragStand = !isMobile && modeMeta.tool === 'select' && (modeMeta.subject === 'stand' || mode === 'select')
+  // Allow dragging zones in select mode or zone-select mode
+  const canDragZone = !isMobile && modeMeta.tool === 'select' && (modeMeta.subject === 'zone' || mode === 'select')
 
   // Colores según estado de reserva
   const getStandFillColor = (stand: Stand): string => {
