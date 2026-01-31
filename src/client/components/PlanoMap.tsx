@@ -184,15 +184,16 @@ const PlanoMap = ({ plano, selectedSpaceId, onSelectSpace }: PlanoMapProps) => {
                                     {!isMobile && (
                                         <Text
                                             x={(-space.width / 2) * stageDimensions.scale}
-                                            y={-9} // Centered vertically (approx)
+                                            y={(-13 * stageDimensions.scale) / 2}
                                             width={space.width * stageDimensions.scale}
                                             text={space.name}
-                                            fontSize={14}
+                                            fontSize={13 * stageDimensions.scale}
                                             fontStyle="600"
                                             fill="#0f172a"
                                             align="center"
                                             verticalAlign="middle"
                                             height={space.height * stageDimensions.scale}
+                                            listening={false}
                                         />
                                     )}
                                 </Group>
