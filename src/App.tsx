@@ -5,11 +5,12 @@ import { useAuth } from './auth/AuthContext'
 const ClientApp = lazy(() => import('./client/ClientApp'))
 const AdminApp = lazy(() => import('./admin/AdminApp'))
 
+import UMLogo from './assets/LogoUniversidadMontevideo.png'
+
 // Componente de loading reutilizable
 const LoadingFallback = () => (
   <div className="loading-screen">
-    <div className="loading-spinner"></div>
-    <p>Cargando...</p>
+    <img src={UMLogo} alt="Universidad de Montevideo" className="loading-logo" />
   </div>
 )
 

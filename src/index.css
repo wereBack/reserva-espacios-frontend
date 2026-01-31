@@ -52,6 +52,7 @@ button {
 }
 
 /* Loading screen for Keycloak init */
+/* Loading screen for Keycloak init */
 .loading-screen {
   display: flex;
   flex-direction: column;
@@ -59,21 +60,31 @@ button {
   justify-content: center;
   height: 100vh;
   gap: 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: var(--um-blue);
   color: white;
 }
 
-.loading-spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.loading-logo {
+  max-width: 300px;
+  width: 80%;
+  height: auto;
+  filter: brightness(0) invert(1);
+  animation: pulse 2s infinite ease-in-out;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+
+  100% {
+    opacity: 0.8;
+    transform: scale(0.98);
   }
 }
